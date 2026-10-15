@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peko Peko | Online Ordering</title>
+<style>
+:root{--ink:#202124;--muted:#666;--accent:#e63946;--paper:#fffaf5;--line:#eadfd6;--green:#168447}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--paper);color:var(--ink)}
+header{background:#fff;padding:22px 16px;border-bottom:1px solid var(--line);text-align:center}
+.logo{font-size:12px;letter-spacing:3px;font-weight:700;color:var(--accent)}
+h1{margin:8px 0 5px;font-size:clamp(28px,5vw,42px)}
+header p{margin:0;color:var(--muted)}
+.wrap{max-width:1050px;margin:0 auto;padding:20px 14px 110px}
+.notice{background:#fff1e9;border:1px solid #f2d5c5;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;margin-bottom:18px}
+h2{font-size:22px;margin:22px 0 12px}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.item{background:#fff;border:1px solid var(--line);border-radius:15px;padding:16px;display:flex;flex-direction:column;min-height:190px;box-shadow:0 3px 12px #3b1d0b08}
+.item .emoji{font-size:34px}
+.item h3{margin:9px 0 6px;font-size:18px}
+.item p{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.4;flex:1}
+.price-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.price{font-weight:700;font-size:17px}
+button{border:0;border-radius:9px;padding:10px 13px;font-weight:700;cursor:pointer}
+.add{background:var(--accent);color:#fff}
+.cart{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:12px 14px;box-shadow:0 -5px 20px #0000000b}
+.cart-inner{max-width:1050px;margin:auto;display:flex;align-items:center;gap:12px;justify-content:space-between}
+.cart-summary{min-width:0}
+.cart-summary strong{display:block}
+.cart-summary span{font-size:13px;color:var(--muted)}
+.checkout{background:var(--green);color:white;white-space:nowrap}
+.modal-backdrop{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;padding:12px;z-index:5}
+.modal{background:#fff;border-radius:18px 18px 12px 12px;padding:20px;width:min(600px,100%);max-height:85vh;overflow:auto}
+.modal h2{margin-top:0}
+.field{display:block;margin:12px 0 5px;font-size:14px;font-weight:700}
+input,textarea,select{width:100%;padding:12px;border:1px solid #d8d0ca;border-radius:9px;font:inherit;background:white}
+textarea{min-height:75px;resize:vertical}
+.cart-line{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:10px 0}
+.qty{display:flex;align-items:center;gap:8px}
+.qty button{background:#f4ece6;padding:6px 10px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.modal-actions button{flex:1}
+.secondary{background:#eee;color:#222}
+.empty{color:var(--muted);padding:8px 0}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
+@media(max-width:480px){.cart-inner{gap:8px}.checkout{padding:12px 10px}.cart-summary span{font-size:12px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">PEKO PEKO</div>
+  <h1>Order Online</h1>
+  <p>Freshly made, just for you.</p>
+</header>
+<main class="wrap">
+  <div class="notice"><strong>Demo menu:</strong> These are sample items and prices. Replace them with your actual menu before sharing this website with customers. WhatsApp ordering also needs your business number added in the code.</div>
+  <h2>Menu</h2>
+  <div id="menu" class="menu"></div>
+  <footer>Thank you for ordering from Peko Peko 💛</footer>
+</main>
+<div class="cart">
+  <div class="cart-inner">
+    <div class="cart-summary"><strong id="cartCount">Your cart is empty</strong><span id="cartTotal">Add items to get started</span></div>
+    <button class="checkout" onclick="openCheckout()">Review order →</button>
+  </div>
+</div>
+<div class="modal-backdrop" id="backdrop" onclick="if(event.target===this)closeCheckout()">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+    <h2 id="checkoutTitle">Your order</h2>
+    <div id="cartLines"></div>
+    <div id="modalTotal" style="font-weight:700;text-align:right;margin-top:12px"></div>
+    <label class="field" for="customerName">Your name *</label>
+    <input id="customerName" placeholder="Name for the order" autocomplete="name">
+    <label class="field" for="orderType">Order type *</label>
+    <select id="orderType"><option value="Pickup">Pickup</option><option value="Delivery">Delivery (confirm availability with us)</option></select>
+    <label class="field" for="customerPhone">Contact number</label>
+    <input id="customerPhone" placeholder="Your phone number" inputmode="tel">
+    <label class="field" for="notes">Notes / address (if delivery)</label>
+    <textarea id="notes" placeholder="Special requests or delivery address"></textarea>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeCheckout()">Back to menu</button>
+      <button class="checkout" onclick="sendWhatsApp()">Order via WhatsApp</button>
+    </div>
+    <p style="font-size:12px;color:#666;line-height:1.5">Your order will be sent to WhatsApp for the shop to confirm. Payment and order acceptance are not processed automatically on this website.</p>
+  </section>
+</div>
+<script>
+/* SETUP: Replace the sample menu below with your real menu.
+   Replace WHATSAPP_NUMBER with your business WhatsApp number in international format,
+   digits only, including country code (Malaysia example: 60123456789). */
+const WHATSAPP_NUMBER = "REPLACE_WITH_YOUR_WHATSAPP_NUMBER";
+const products = [
+  {id:1,name:"Signature Bento",description:"Sample item — replace with your menu description.",price:12.90,emoji:"🍱"},
+  {id:2,name:"Chicken Rice",description:"Sample item — replace with your menu description.",price:10.90,emoji:"🍗"},
+  {id:3,name:"Noodles",description:"Sample item — replace with your menu description.",price:9.90,emoji:"🍜"},
+  {id:4,name:"Snack Box",description:"Sample item — replace with your menu description.",price:7.90,emoji:"🥟"}
+];
+const cart = {};
+const money = n => "RM " + n.toFixed(2);
+function renderMenu(){
+  document.getElementById("menu").innerHTML = products.map(p=>`
+    <article class="item">
+      <div class="emoji">${p.emoji}</div><h3>${p.name}</h3><p>${p.description}</p>
+      <div class="price-row"><span class="price">${money(p.price)}</span><button class="add" onclick="addItem(${p.id})">＋ Add</button></div>
+    </article>`).join("");
+}
+function addItem(id){cart[id]=(cart[id]||0)+1;renderCart()}
+function changeQty(id,delta){cart[id]=(cart[id]||0)+delta;if(cart[id]<=0)delete cart[id];renderCart();renderCheckout()}
+function totalQty(){return Object.values(cart).reduce((a,b)=>a+b,0)}
+function totalPrice(){return products.reduce((sum,p)=>sum+p.price*(cart[p.id]||0),0)}
+function renderCart(){
+  const count=totalQty();
+  document.getElementById("cartCount").textContent=count?`${count} item${count===1?"":"s"} in your cart`:"Your cart is empty";
+  document.getElementById("cartTotal").textContent=count?`Subtotal: ${money(totalPrice())}`:"Add items to get started";
+}
+function openCheckout(){if(!totalQty()){alert("Please add at least one item first.");return}renderCheckout();document.getElementById("backdrop").style.display="flex"}
+function closeCheckout(){document.getElementById("backdrop").style.display="none"}
+function renderCheckout(){
+  const selected=products.filter(p=>cart[p.id]);
+  document.getElementById("cartLines").innerHTML=selected.length?selected.map(p=>`
+    <div class="cart-line"><div><strong>${p.name}</strong><br><small>${money(p.price)} each</small></div>
+    <div class="qty"><button onclick="changeQty(${p.id},-1)">−</button><span>${cart[p.id]}</span><button onclick="changeQty(${p.id},1)">＋</button></div></div>`).join(""):'<p class="empty">Your cart is empty.</p>';
+  document.getElementById("modalTotal").textContent="Subtotal: "+money(totalPrice());
+}
+function sendWhatsApp(){
+  if(!totalQty()){alert("Your cart is empty.");return}
+  const name=document.getElementById("customerName").value.trim();
+  if(!name){alert("Please enter your name.");document.getElementById("customerName").focus();return}
+  if(WHATSAPP_NUMBER==="REPLACE_WITH_YOUR_WHATSAPP_NUMBER"){alert("The shop owner needs to add the business WhatsApp number in the HTML file before orders can be sent.");return}
+  const type=document.getElementById("orderType").value;
+  const phone=document.getElementById("customerPhone").value.trim();
+  const notes=document.getElementById("notes").value.trim();
+  let msg=`PEKO PEKO — NEW ORDER%0AName: ${encodeURIComponent(name)}%0AOrder type: ${encodeURIComponent(type)}`;
+  if(phone)msg+=`%0AContact: ${encodeURIComponent(phone)}`;
+  msg+="%0A%0AItems:";
+  products.filter(p=>cart[p.id]).forEach(p=>{msg+=`%0A${encodeURIComponent(p.name)} x ${cart[p.id]} — ${encodeURIComponent(money(p.price*cart[p.id]))}`});
+  msg+=`%0A%0ASubtotal: ${encodeURIComponent(money(totalPrice()))}`;
+  if(notes)msg+=`%0ANotes: ${encodeURIComponent(notes)}`;
+  msg+="%0A%0APlease confirm availability and final amount.";
+  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`,"_blank","noopener");
+}
+renderMenu();renderCart();
+</script>
+</body>
+</html>
