@@ -93,9 +93,24 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     <label class="field" for="adminPhone">Contact number 联系电话</label><input id="adminPhone" inputmode="tel" placeholder="Optional / 选填">
     <label class="field" for="adminDate">Pickup date 取餐日期 *</label><input id="adminDate" type="date">
     <label class="field" for="adminTime">Pickup time 取餐时段 *</label><select id="adminTime"><option value="">Choose / 选择</option><option>1:00 PM / 下午 1:00</option><option>1:30 PM / 下午 1:30</option><option>2:00 PM / 下午 2:00</option><option>6:00 PM / 下午 6:00</option><option>6:30 PM / 下午 6:30</option><option>7:00 PM / 下午 7:00</option></select>
-    <label class="field" for="adminItems">Items & options 商品与配料 *</label><textarea id="adminItems" rows="4" placeholder="Ramen (Tonkotsu) + Karaage x 2
-拉面（豚骨汤底）+ 日式炸鸡 x 2"></textarea>
-    <label class="field" for="adminTotal">Total amount (RM) 订单总额 *</label><input id="adminTotal" type="number" min="0" step="0.01" placeholder="e.g. 32.00">
+    <h3 style="margin:12px 0 4px">Build order items 选择商品并自动计算</h3>
+    <p style="font-size:12px;color:#666;margin:0 0 8px">Select menu items and quantity. The item list and total will update automatically. 选择商品与数量，商品清单和总额会自动更新。</p>
+    <label class="field" for="adminProduct">Menu item 菜单商品</label>
+    <select id="adminProduct" onchange="renderAdminOptions()">
+      <option value="">Choose item / 选择商品</option>
+      <option value="ramen">Ramen 拉面</option>
+      <option value="teriyaki">Teriyaki Chicken Donburi 照烧鸡肉丼 — RM 15</option>
+      <option value="curry">Japanese Curry Donburi 日式咖喱丼</option>
+      <option value="karaage">Karaage with Sauce 日式炸鸡（附酱汁）— RM 11</option>
+      <option value="egg">Ajitsuke Tamago 日式溏心蛋 — RM 2</option>
+    </select>
+    <div id="adminProductOptions"></div>
+    <label class="field" for="adminQty">Quantity 数量</label>
+    <input id="adminQty" type="number" min="1" step="1" value="1">
+    <button type="button" class="secondary" onclick="addAdminItem()" style="margin-top:8px">＋ Add item 添加商品</button>
+    <label class="field" for="adminItems">Items & options 商品与配料 *</label><textarea id="adminItems" rows="4" placeholder="Add items above / 请在上方选择商品并添加"></textarea>
+    <label class="field" for="adminTotal">Total amount (RM) 自动计算总额</label><input id="adminTotal" type="number" min="0" step="0.01" placeholder="Total / 总额" readonly>
+    <button type="button" class="secondary" onclick="clearAdminItems()" style="margin-top:6px">Clear items 清空商品</button>
     <label class="field" for="adminNotes">Notes / WhatsApp reference 备注 / WhatsApp 备注</label><textarea id="adminNotes" rows="2" placeholder="Payment reference, allergies, special requests / 付款参考、过敏信息、特别要求"></textarea>
     <label class="field" for="adminPayment">Payment status 付款状态 *</label><select id="adminPayment"><option value="Pending">Pending / 待付款</option><option value="Paid">Paid / 已付款</option></select>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><button class="secondary" onclick="saveAdminOrder(false)">Save pending 保存待处理</button><button class="add" onclick="saveAdminOrder(true)">Confirm paid order 确认已付款订单</button></div>
@@ -307,6 +322,50 @@ function nextOrderNumber(pickupDate,orders){
   const seq=orders.filter(o=>o.orderNo&&o.orderNo.startsWith(prefix)).length+1;
   return prefix+String(seq).padStart(3,"0");
 }
+const adminOrderLines = [];
+function renderAdminOptions(){
+  const id=document.getElementById("adminProduct").value;
+  const target=document.getElementById("adminProductOptions");
+  let out="";
+  if(id==="ramen"){
+    out=`<label class="field" for="adminSoup">Soup base 汤底</label><select id="adminSoup"><option value="">Choose / 选择</option><option value="Tonkotsu 豚骨">Tonkotsu 豚骨</option><option value="Shoyu 酱油">Shoyu 酱油</option><option value="Miso 味噌">Miso 味噌</option></select>
+    <label class="field" for="adminTopping">Topping 配料</label><select id="adminTopping"><option value="">Choose / 选择</option>${ramenToppings.map((x,i)=>`<option value="${i}">${x.name} ${x.cn} — RM ${x.price.toFixed(2)}</option>`).join("")}</select>`;
+  } else if(id==="curry"){
+    out=`<label class="field" for="adminTopping">Curry topping 咖喱配料</label><select id="adminTopping"><option value="">Choose / 选择</option>${curryToppings.map((x,i)=>`<option value="${i}">${x.name} ${x.cn} — RM ${x.price.toFixed(2)}</option>`).join("")}</select>`;
+  }
+  target.innerHTML=out;
+}
+function addAdminItem(){
+  const id=document.getElementById("adminProduct").value;
+  const qty=Number(document.getElementById("adminQty").value);
+  if(!id){alert("Please choose a menu item.\\n请先选择商品。");return}
+  if(!Number.isInteger(qty)||qty<1){alert("Quantity must be at least 1.\\n数量必须至少为 1。");return}
+  let name="",price=0;
+  if(id==="ramen"){
+    const soup=document.getElementById("adminSoup")?.value;
+    const ix=document.getElementById("adminTopping")?.value;
+    if(!soup||ix===""){alert("Choose soup base and topping.\\n请选择汤底和配料。");return}
+    const t=ramenToppings[Number(ix)]; name=`Ramen (${soup}) + ${t.name} / 拉面（${soup}）+ ${t.cn}`;price=t.price;
+  } else if(id==="curry"){
+    const ix=document.getElementById("adminTopping")?.value;
+    if(ix===""){alert("Choose curry topping.\\n请选择咖喱配料。");return}
+    const t=curryToppings[Number(ix)];name=`Japanese Curry Donburi + ${t.name} / 日式咖喱丼 + ${t.cn}`;price=t.price;
+  } else if(id==="teriyaki"){name="Teriyaki Chicken Donburi / 照烧鸡肉丼";price=15}
+  else if(id==="karaage"){name="Karaage with Sauce / 日式炸鸡（附酱汁）";price=11}
+  else if(id==="egg"){name="Ajitsuke Tamago / 日式溏心蛋";price=2}
+  adminOrderLines.push({name,price,qty});
+  updateAdminOrderSummary();
+}
+function updateAdminOrderSummary(){
+  document.getElementById("adminItems").value=adminOrderLines.map(x=>`${x.name} x ${x.qty} — RM ${(x.price*x.qty).toFixed(2)}`).join("\\n");
+  document.getElementById("adminTotal").value=adminOrderLines.reduce((s,x)=>s+x.price*x.qty,0).toFixed(2);
+}
+function clearAdminItems(){
+  adminOrderLines.length=0;
+  document.getElementById("adminItems").value="";
+  document.getElementById("adminTotal").value="";
+}
+
 function saveAdminOrder(confirmPaid){
   const name=document.getElementById("adminName").value.trim();
   const phone=document.getElementById("adminPhone").value.trim();
@@ -324,7 +383,11 @@ function saveAdminOrder(confirmPaid){
   orders.unshift(order);writeOrders(orders);renderRecords();
   if(confirmPaid){if(confirm("Order confirmed. Print pickup ticket now?\n订单已确认。现在打印取餐单吗？"))printTicket(order.id);}
   else alert("Pending order saved. No order number assigned until payment is confirmed.\n待付款订单已保存；确认收款前不会分配正式单号。");
-  ["adminName","adminPhone","adminItems","adminTotal","adminNotes"].forEach(id=>document.getElementById(id).value="");
+  ["adminName","adminPhone","adminNotes"].forEach(id=>document.getElementById(id).value="");
+  clearAdminItems();
+  document.getElementById("adminProduct").value="";
+  document.getElementById("adminProductOptions").innerHTML="";
+  document.getElementById("adminQty").value="1";
   document.getElementById("adminPayment").value="Pending";
 }
 function updateOrder(id,field,value){const orders=readOrders();const o=orders.find(x=>x.id===id);if(!o)return;o[field]=value;writeOrders(orders);renderRecords()}
