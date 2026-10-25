@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Peko Peko Stall | Online Ordering 线上点餐</title>
+<title>Peko Peko Stall | Customer Ordering 顾客点餐</title>
 <style>
 :root{--ink:#202124;--muted:#686868;--accent:#d83b45;--paper:#fffaf5;--line:#eadfd6;--green:#168447;--soft:#fff0e8}
 *{box-sizing:border-box}
@@ -303,117 +303,6 @@ function sendWhatsApp(){
   if(notes)msg+=`%0ANotes 备注: ${encodeURIComponent(notes)}`;
   msg+="%0A%0APickup only. Order is final only after successful payment and shop confirmation.%0A仅提供自取；成功付款并经店家确认后，订单才最终确定。";
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`,"_blank","noopener");
-}
-
-const ORDER_STORAGE_KEY = "pekoPekoOrders_v1";
-function toggleAdmin(show){
-  document.getElementById("adminPanel").style.display=show?"block":"none";
-  document.querySelector("main.wrap").style.display=show?"none":"block";
-  document.querySelector(".cart").style.display=show?"none":"block";
-  if(show){const d=new Date();document.getElementById("adminDate").value=document.getElementById("adminDate").value||localDateString(d);renderRecords();}
-  window.scrollTo(0,0);
-}
-function readOrders(){try{return JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY)||"[]")}catch(e){return []}}
-function writeOrders(orders){localStorage.setItem(ORDER_STORAGE_KEY,JSON.stringify(orders))}
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function nextOrderNumber(pickupDate,orders){
-  const datePart=pickupDate.replaceAll("-","").slice(2);
-  const prefix=`PP-${datePart}-`;
-  const seq=orders.filter(o=>o.orderNo&&o.orderNo.startsWith(prefix)).length+1;
-  return prefix+String(seq).padStart(3,"0");
-}
-const adminOrderLines = [];
-function renderAdminOptions(){
-  const id=document.getElementById("adminProduct").value;
-  const target=document.getElementById("adminProductOptions");
-  let out="";
-  if(id==="ramen"){
-    out=`<label class="field" for="adminSoup">Soup base 汤底</label><select id="adminSoup"><option value="">Choose / 选择</option><option value="Tonkotsu 豚骨">Tonkotsu 豚骨</option><option value="Shoyu 酱油">Shoyu 酱油</option><option value="Miso 味噌">Miso 味噌</option></select>
-    <label class="field" for="adminTopping">Topping 配料</label><select id="adminTopping"><option value="">Choose / 选择</option>${ramenToppings.map((x,i)=>`<option value="${i}">${x.name} ${x.cn} — RM ${x.price.toFixed(2)}</option>`).join("")}</select>`;
-  } else if(id==="curry"){
-    out=`<label class="field" for="adminTopping">Curry topping 咖喱配料</label><select id="adminTopping"><option value="">Choose / 选择</option>${curryToppings.map((x,i)=>`<option value="${i}">${x.name} ${x.cn} — RM ${x.price.toFixed(2)}</option>`).join("")}</select>`;
-  }
-  target.innerHTML=out;
-}
-function addAdminItem(){
-  const id=document.getElementById("adminProduct").value;
-  const qty=Number(document.getElementById("adminQty").value);
-  if(!id){alert("Please choose a menu item.\\n请先选择商品。");return}
-  if(!Number.isInteger(qty)||qty<1){alert("Quantity must be at least 1.\\n数量必须至少为 1。");return}
-  let name="",price=0;
-  if(id==="ramen"){
-    const soup=document.getElementById("adminSoup")?.value;
-    const ix=document.getElementById("adminTopping")?.value;
-    if(!soup||ix===""){alert("Choose soup base and topping.\\n请选择汤底和配料。");return}
-    const t=ramenToppings[Number(ix)]; name=`Ramen (${soup}) + ${t.name} / 拉面（${soup}）+ ${t.cn}`;price=t.price;
-  } else if(id==="curry"){
-    const ix=document.getElementById("adminTopping")?.value;
-    if(ix===""){alert("Choose curry topping.\\n请选择咖喱配料。");return}
-    const t=curryToppings[Number(ix)];name=`Japanese Curry Donburi + ${t.name} / 日式咖喱丼 + ${t.cn}`;price=t.price;
-  } else if(id==="teriyaki"){name="Teriyaki Chicken Donburi / 照烧鸡肉丼";price=15}
-  else if(id==="karaage"){name="Karaage with Sauce / 日式炸鸡（附酱汁）";price=11}
-  else if(id==="egg"){name="Ajitsuke Tamago / 日式溏心蛋";price=2}
-  adminOrderLines.push({name,price,qty});
-  updateAdminOrderSummary();
-}
-function updateAdminOrderSummary(){
-  document.getElementById("adminItems").value=adminOrderLines.map(x=>`${x.name} x ${x.qty} — RM ${(x.price*x.qty).toFixed(2)}`).join("\\n");
-  document.getElementById("adminTotal").value=adminOrderLines.reduce((s,x)=>s+x.price*x.qty,0).toFixed(2);
-}
-function clearAdminItems(){
-  adminOrderLines.length=0;
-  document.getElementById("adminItems").value="";
-  document.getElementById("adminTotal").value="";
-}
-
-function saveAdminOrder(confirmPaid){
-  const name=document.getElementById("adminName").value.trim();
-  const phone=document.getElementById("adminPhone").value.trim();
-  const date=document.getElementById("adminDate").value;
-  const time=document.getElementById("adminTime").value;
-  const items=document.getElementById("adminItems").value.trim();
-  const total=Number(document.getElementById("adminTotal").value);
-  const notes=document.getElementById("adminNotes").value.trim();
-  const payment=document.getElementById("adminPayment").value;
-  if(!name||!date||!time||!items||document.getElementById("adminTotal").value===""||!Number.isFinite(total)||total<0){alert("Please fill in customer, pickup date/time, items and total.\n请填写顾客姓名、取餐日期/时段、商品及总额。");return}
-  if(confirmPaid&&payment!=="Paid"){alert("Set payment status to Paid only after you have received the money.\n确认收到款项后，才可将付款状态设为已付款。");return}
-  const orders=readOrders();
-  const now=new Date();
-  const order={id:`local-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,orderNo:confirmPaid?nextOrderNumber(date,orders):"",createdAt:now.toISOString(),customer:name,phone,date,time,items,total:Number(total.toFixed(2)),notes,payment:confirmPaid?"Paid":"Pending",status:confirmPaid?"Confirmed":"Awaiting payment"};
-  orders.unshift(order);writeOrders(orders);renderRecords();
-  if(confirmPaid){if(confirm("Order confirmed. Print pickup ticket now?\n订单已确认。现在打印取餐单吗？"))printTicket(order.id);}
-  else alert("Pending order saved. No order number assigned until payment is confirmed.\n待付款订单已保存；确认收款前不会分配正式单号。");
-  ["adminName","adminPhone","adminNotes"].forEach(id=>document.getElementById(id).value="");
-  clearAdminItems();
-  document.getElementById("adminProduct").value="";
-  document.getElementById("adminProductOptions").innerHTML="";
-  document.getElementById("adminQty").value="1";
-  document.getElementById("adminPayment").value="Pending";
-}
-function updateOrder(id,field,value){const orders=readOrders();const o=orders.find(x=>x.id===id);if(!o)return;o[field]=value;writeOrders(orders);renderRecords()}
-function printTicket(id){
-  const o=readOrders().find(x=>x.id===id);if(!o)return;
-  if(o.payment!=="Paid"||!o.orderNo){alert("Only paid and confirmed orders can be printed as final tickets.\n只有已付款并确认的订单才能打印正式取餐单。");return}
-  const w=window.open("","_blank","width=420,height=700");if(!w){alert("Please allow pop-ups to print the ticket.\n请允许弹出窗口以打印取餐单。");return}
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(o.orderNo)}</title><style>body{font-family:Arial,sans-serif;color:#000;width:48mm;margin:0 auto;padding:2mm;font-size:11px}h1{text-align:center;font-size:19px;margin:4px 0}h2{text-align:center;font-size:14px;margin:3px 0}hr{border:0;border-top:1px dashed #000;margin:8px 0}.no{text-align:center;font-size:22px;font-weight:bold;margin:8px 0}.line{margin:5px 0;overflow-wrap:anywhere}.items{white-space:pre-wrap;overflow-wrap:anywhere}.total{font-size:16px;font-weight:bold;text-align:right;margin-top:10px}.status{text-align:center;font-weight:bold;border:1px solid #000;padding:5px;margin-top:8px}@media print{@page{size:58mm auto;margin:2mm}body{width:auto;padding:0}}</style></head><body><h1>PEKO PEKO STALL</h1><h2>ORDER / 取餐单</h2><hr><div class="no">${esc(o.orderNo)}</div><div class="line"><b>Pickup / 取餐：</b>${esc(o.date)} · ${esc(o.time)}</div><div class="line"><b>Name / 姓名：</b>${esc(o.customer)}</div><div class="line"><b>Contact / 电话：</b>${esc(o.phone||"—")}</div><hr><div><b>Items / 商品：</b></div><div class="items">${esc(o.items)}</div><div class="total">TOTAL 总额: RM ${Number(o.total).toFixed(2)}</div>${o.notes?`<hr><div class="line"><b>Notes / 备注：</b>${esc(o.notes)}</div>`:""}<hr><div class="status">PAID · CONFIRMED<br>已付款 · 已确认</div><p style="text-align:center">Thank you! 谢谢惠顾！</p><script>window.onload=()=>{window.print();};<\/script></body></html>`);
-  w.document.close();
-}
-function renderRecords(){
-  const all=readOrders();const filter=document.getElementById("recordDate").value;
-  const orders=all.filter(o=>!filter||o.date===filter).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
-  const confirmed=orders.filter(o=>o.payment==="Paid"&&o.orderNo);
-  document.getElementById("recordSummary").textContent=`${orders.length} order(s) / 笔订单 · ${confirmed.length} confirmed & paid / 笔已付款确认 · Total confirmed: RM ${confirmed.reduce((s,o)=>s+Number(o.total||0),0).toFixed(2)}`;
-  const target=document.getElementById("recordsList");
-  if(!orders.length){target.innerHTML='<p class="empty">No records yet. / 暂无订单记录。</p>';return}
-  target.innerHTML=orders.map(o=>`<article class="item" style="margin:10px 0;gap:7px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><strong>${esc(o.orderNo||"PENDING / 待确认单号")}</strong><strong>${o.payment==="Paid"?"PAID 已付款":"PENDING 待付款"}</strong></div><div><b>${esc(o.customer)}</b> · ${esc(o.date)} · ${esc(o.time)}</div><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(o.items)}</div><div><b>RM ${Number(o.total).toFixed(2)}</b> · ${esc(o.status)}</div>${o.phone?`<div>☎ ${esc(o.phone)}</div>`:""}${o.notes?`<div>Notes / 备注：${esc(o.notes)}</div>`:""}<div style="display:flex;gap:8px;flex-wrap:wrap"><select aria-label="Payment status" onchange="updateOrder('${o.id}','payment',this.value)"><option value="Pending" ${o.payment==="Pending"?"selected":""}>Pending / 待付款</option><option value="Paid" ${o.payment==="Paid"?"selected":""}>Paid / 已付款</option></select><select aria-label="Order status" onchange="updateOrder('${o.id}','status',this.value)">${["Awaiting payment","Confirmed","Preparing","Ready for pickup","Collected","Cancelled"].map(st=>`<option value="${st}" ${o.status===st?"selected":""}>${st}</option>`).join("")}</select>${o.payment==="Paid"&&!o.orderNo?`<button class="add" onclick="confirmExisting('${o.id}')">Assign no. & confirm 分配单号</button>`:""}${o.payment==="Paid"&&o.orderNo?`<button class="secondary" onclick="printTicket('${o.id}')">Print ticket 打印</button>`:""}<button class="secondary" onclick="deleteOrder('${o.id}')">Delete 删除</button></div></article>`).join("");
-}
-function confirmExisting(id){const orders=readOrders();const o=orders.find(x=>x.id===id);if(!o)return;if(o.payment!=="Paid"){alert("Mark paid only after payment is received.\n收到款项后才能确认。");return}if(!o.orderNo)o.orderNo=nextOrderNumber(o.date,orders);o.status="Confirmed";writeOrders(orders);renderRecords();if(confirm("Order confirmed. Print ticket now?\n订单已确认。现在打印吗？"))printTicket(id)}
-function deleteOrder(id){if(!confirm("Delete this order record? / 确定删除这笔订单记录？"))return;writeOrders(readOrders().filter(o=>o.id!==id));renderRecords()}
-function exportRecords(){
- const orders=readOrders();if(!orders.length){alert("No records to export.\n暂无可导出的记录。");return}
- const cols=["orderNo","createdAt","customer","phone","date","time","items","total","payment","status","notes"];
- const csv=[cols.join(","),...orders.map(o=>cols.map(k=>'"'+String(o[k]??"").replace(/"/g,'""')+'"').join(","))].join("\r\n");
- const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`peko-peko-orders-${localDateString(new Date())}.csv`;a.click();URL.revokeObjectURL(url);
 }
 
 renderMenu();renderCart();
