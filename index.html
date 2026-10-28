@@ -58,6 +58,14 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   <div class="logo">PEKO PEKO STALL</div>
   <h1>Online Ordering 线上点餐</h1>
   <p>Japanese comfort food · 日式美食</p>
+  <div style="margin-top:14px">
+  <button
+    type="button"
+    class="secondary"
+    onclick="showStaffLogin()">
+    Staff Login 员工登录
+  </button>
+</div>
 </header>
 <main class="wrap">
   <div class="notice">
@@ -79,11 +87,71 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
   <div id="menu" class="menu"></div>
   <footer>Thank you for ordering from Peko Peko Stall 💛<br>感谢您支持 Peko Peko Stall</footer>
 </main>
+<section
+  id="staffLoginPanel"
+  class="wrap"
+  style="display:none;max-width:480px">
 
+  <div class="item">
+    <h2 style="margin-top:0">
+      Staff Login 员工登录
+    </h2>
+
+    <p class="section-sub">
+      Authorized staff only / 仅限获授权员工
+    </p>
+
+    <label class="field" for="staffEmail">
+      Email 电邮
+    </label>
+    <input
+      id="staffEmail"
+      type="email"
+      autocomplete="username"
+      placeholder="Enter your staff email">
+
+    <label class="field" for="staffPassword">
+      Password 密码
+    </label>
+    <input
+      id="staffPassword"
+      type="password"
+      autocomplete="current-password"
+      placeholder="Enter your password">
+
+    <button
+      type="button"
+      class="checkout"
+      style="margin-top:14px;width:100%"
+      onclick="staffLogin()">
+      Login 登录
+    </button>
+
+    <p
+      id="staffLoginMessage"
+      role="status"
+      style="font-size:13px;line-height:1.5">
+    </p>
+
+    <button
+      type="button"
+      class="secondary"
+      style="width:100%"
+      onclick="closeStaffLogin()">
+      Back to menu 返回菜单
+    </button>
+  </div>
+</section>
 <section id="adminPanel" class="wrap" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
     <div><h2 style="margin-top:0">Order Management 订单管理</h2><p class="section-sub">WhatsApp orders must be entered here manually. Orders become confirmed only after payment is received. 请手动登记 WhatsApp 订单；收到付款后才可确认。</p></div>
     <button class="secondary" onclick="toggleAdmin(false)">Back to menu 返回菜单</button>
+    <button
+  type="button"
+  class="secondary"
+  onclick="staffLogout()">
+  Logout 登出
+</button>
   </div>
   <div class="notice"><strong>Important 重要说明</strong>Records are stored only in this browser on this iPhone. They are not automatically synced to WhatsApp or other devices. Export a CSV backup regularly. 订单记录只保存在此 iPhone 的浏览器，不会自动同步到 WhatsApp 或其他设备，请定期导出 CSV 备份。</div>
   <h2>Register WhatsApp order 登记 WhatsApp 订单</h2>
@@ -310,7 +378,139 @@ function sendWhatsApp(){
   msg+="%0A%0APickup only. Order is final only after successful payment and shop confirmation.%0A仅提供自取；成功付款并经店家确认后，订单才最终确定。";
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`,"_blank","noopener");
 }
+// ===== STAFF AUTHENTICATION / 员工登录验证 =====
 
+let currentStaff = null;
+let currentStaffRole = null;
+
+function showStaffLogin() {
+  document.getElementById("staffLoginPanel").style.display = "block";
+  document.getElementById("staffLoginMessage").textContent = "";
+  document.getElementById("staffLoginPanel").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+function closeStaffLogin() {
+  document.getElementById("staffLoginPanel").style.display = "none";
+}
+
+function toggleAdmin(show) {
+  if (show && !currentStaff) {
+    showStaffLogin();
+    return;
+  }
+
+  document.getElementById("adminPanel").style.display =
+    show ? "block" : "none";
+
+  if (show) {
+    document.getElementById("adminPanel").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+}
+
+async function staffLogin() {
+  const message = document.getElementById("staffLoginMessage");
+  const email = document.getElementById("staffEmail").value.trim();
+  const password = document.getElementById("staffPassword").value;
+
+  if (!email || !password) {
+    message.textContent = "Please enter your email and password. 请输入电邮和密码。";
+    return;
+  }
+
+  const button = document.querySelector(
+    '#staffLoginPanel button[onclick="staffLogin()"]'
+  );
+
+  button.disabled = true;
+  message.textContent = "Signing in... 正在登录……";
+
+  try {
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) throw error;
+
+    const user = data.user;
+
+    const { data: roleRecord, error: roleError } =
+      await supabaseClient
+        .from("staff_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+    if (roleError) {
+      await supabaseClient.auth.signOut();
+      throw new Error(
+        "Could not verify staff permissions. 无法验证员工权限。"
+      );
+    }
+
+    if (
+      !roleRecord ||
+      !["owner", "staff"].includes(roleRecord.role)
+    ) {
+      await supabaseClient.auth.signOut();
+      throw new Error(
+        "This account is not authorized for staff access. 此账号没有员工管理权限。"
+      );
+    }
+
+    currentStaff = user;
+    currentStaffRole = roleRecord.role;
+
+    closeStaffLogin();
+
+    document.getElementById("adminPanel").style.display = "block";
+
+    message.textContent = "";
+
+    alert(
+      "Login successful / 登录成功\n" +
+      "Role / 角色: " + currentStaffRole
+    );
+
+    document.getElementById("adminPanel").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+
+  } catch (error) {
+    message.textContent =
+      error.message || "Login failed. 登录失败。";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function staffLogout() {
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) {
+    alert("Logout failed. Please try again. 登出失败，请重试。");
+    return;
+  }
+
+  currentStaff = null;
+  currentStaffRole = null;
+
+  document.getElementById("adminPanel").style.display = "none";
+  document.getElementById("staffLoginPanel").style.display = "none";
+
+  document.getElementById("staffEmail").value = "";
+  document.getElementById("staffPassword").value = "";
+
+  alert("Logged out successfully. 已成功登出。");
+}
 renderMenu();renderCart();
 </script>
 </body>
