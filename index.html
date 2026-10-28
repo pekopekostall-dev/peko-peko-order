@@ -836,20 +836,21 @@ function escapeAdminHTML(value) {
   })[char]);
 }
 
-function renderRecords() {
-  
+
 async function renderRecords() {
   const list = document.getElementById("recordsList");
   const summary = document.getElementById("recordSummary");
   const date = document.getElementById("recordDate").value;
 
   if (!currentStaff) {
-    summary.textContent = "Please log in to view orders. 请登录后查看订单。";
+    summary.textContent =
+      "Please log in to view orders. 请登录后查看订单。";
     list.innerHTML = "";
     return;
   }
 
-  summary.textContent = "Loading cloud orders... 正在读取云端订单……";
+  summary.textContent =
+    "Loading cloud orders... 正在读取云端订单……";
   list.innerHTML = "";
 
   try {
@@ -858,11 +859,14 @@ async function renderRecords() {
     const records = allRecords
       .filter(r => !date || r.pickupDate === date)
       .sort((a, b) =>
-        String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+        String(b.createdAt || "").localeCompare(
+          String(a.createdAt || "")
+        )
       );
 
     const total = records.reduce(
-      (sum, r) => sum + Number(r.total || 0), 0
+      (sum, r) => sum + Number(r.total || 0),
+      0
     );
 
     summary.textContent =
@@ -876,7 +880,9 @@ async function renderRecords() {
 
     list.innerHTML = records.map(r => `
       <article class="item" style="margin-top:12px">
-        <strong>${escapeAdminHTML(r.orderNumber || "Pending / 待确认编号")}</strong>
+        <strong>${escapeAdminHTML(
+          r.orderNumber || "Pending / 待确认编号"
+        )}</strong>
         <p>${escapeAdminHTML(r.customer)} · ${escapeAdminHTML(r.phone)}</p>
         <p>Pickup: ${escapeAdminHTML(r.pickupDate)} · ${escapeAdminHTML(r.pickupTime)}</p>
         <p>${(Array.isArray(r.items) ? r.items : []).map(i =>
@@ -884,43 +890,28 @@ async function renderRecords() {
         ).join("<br>")}</p>
         <strong>Total: ${money(Number(r.total || 0))}</strong>
         <p>Payment: ${escapeAdminHTML(r.payment)}</p>
-${r.payment === "Pending" ? `
-  <button
-    type="button"
-    class="add"
-    onclick="confirmExistingOrderPaid('${escapeAdminHTML(r.id)}')"
-  >
-    Confirm paid / 确认收款
-  </button>
-` : ""}
+        ${r.payment === "Pending" ? `
+          <button
+            type="button"
+            class="add"
+            onclick="confirmExistingOrderPaid('${escapeAdminHTML(r.id)}')"
+          >
+            Confirm paid / 确认收款
+          </button>
+        ` : ""}
         <p>${escapeAdminHTML(r.notes)}</p>
       </article>
     `).join("");
 
   } catch (error) {
-    summary.textContent = "Unable to load cloud orders. 无法读取云端订单。";
-    list.textContent = error.message || "Please try again. 请重试。";
+    console.error("Load records failed:", error);
+    summary.textContent =
+      "Unable to load cloud orders. 无法读取云端订单。";
+    list.textContent =
+      error.message || "Please try again. 请重试。";
   }
 }
 
-  }
-
-  list.innerHTML = records.map(r => `
-    <article class="item" style="margin-top:12px">
-      <strong>${escapeAdminHTML(r.orderNumber || "Pending / 待确认编号")}</strong>
-      <p>${escapeAdminHTML(r.customer)} · ${escapeAdminHTML(r.phone)}</p>
-      <p>Pickup: ${escapeAdminHTML(r.pickupDate)} · ${escapeAdminHTML(r.pickupTime)}</p>
-      <p>${r.items.map(i =>
-        `${escapeAdminHTML(i.name)} × ${Number(i.qty)} — ${money(Number(i.price) * Number(i.qty))}`
-      ).join("<br>")}</p>
-      <strong>Total: ${money(Number(r.total || 0))}</strong>
-      <p>Payment: ${escapeAdminHTML(r.payment)}</p>
-      <p>${escapeAdminHTML(r.notes)}</p>
-    </article>
-  `).join("");
-}
-
-function exportRecords() 
 async function exportRecords() {
   if (!currentStaff) {
     alert("Please log in first. 请先登录。");
@@ -931,7 +922,6 @@ async function exportRecords() {
 
   try {
     const allRecords = await getAdminRecords();
-
     const records = allRecords.filter(
       r => !date || r.pickupDate === date
     );
@@ -981,14 +971,10 @@ async function exportRecords() {
       ];
     });
 
-    const csvContent = [
-      headers,
-      ...rows
-    ]
+    const csvContent = [headers, ...rows]
       .map(row => row.map(csvEscape).join(","))
       .join("\r\n");
 
-    // Add BOM so Excel can display Chinese text correctly.
     const blob = new Blob(
       ["\uFEFF" + csvContent],
       { type: "text/csv;charset=utf-8;" }
@@ -1014,8 +1000,6 @@ async function exportRecords() {
     );
   }
 }
-
-
 /* ===== INITIALIZE / 初始化 ===== */
 renderMenu();
 renderCart();
