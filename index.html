@@ -98,9 +98,9 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     <select id="adminProduct" onchange="renderAdminOptions()">
       <option value="">Choose item / 选择商品</option>
       <option value="ramen">Ramen 拉面</option>
-      <option value="teriyaki">Teriyaki Chicken Donburi 照烧鸡肉丼 — RM 15</option>
+      <option value="teriyaki">Teriyaki Chicken Donburi 照烧鸡排丼 — RM 15</option>
       <option value="curry">Japanese Curry Donburi 日式咖喱丼</option>
-      <option value="karaage">Karaage with Sauce 日式炸鸡（附酱汁）— RM 11</option>
+      <option value="karaage"> Chicken Karaage 唐扬鸡块/日式炸鸡块— RM 11</option>
       <option value="egg">Ajitsuke Tamago 日式溏心蛋 — RM 2</option>
     </select>
     <div id="adminProductOptions"></div>
@@ -178,19 +178,19 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 const WHATSAPP_NUMBER = "601123015207"; // Malaysia number in international format, digits only
 const products = [
   {id:"ramen",category:"Ramen 拉面",name:"Ramen",cn:"拉面",emoji:"🍜",type:"ramen",basePrice:16},
-  {id:"teriyaki",category:"Donburi 丼饭",name:"Teriyaki Chicken Donburi",cn:"照烧鸡肉丼",emoji:"🍚",type:"teriyaki",price:15},
+  {id:"teriyaki",category:"Donburi 丼饭",name:"Teriyaki Chicken Donburi",cn:"照烧鸡排丼",emoji:"🍚",type:"teriyaki",price:15},
   {id:"curry",category:"Donburi 丼饭",name:"Japanese Curry Donburi",cn:"日式咖喱丼",emoji:"🍛",type:"curry"},
-  {id:"karaage",category:"Ala Carte 单点",name:"Karaage with Sauce",cn:"日式炸鸡（附酱汁）",emoji:"🍗",type:"simple",price:11},
+  {id:"karaage",category:"Ala Carte 单点",name:"Chicken Karaage",cn:"日式炸鸡块",emoji:"🍗",type:"simple",price:11},
   {id:"egg",category:"Ala Carte 单点",name:"Ajitsuke Tamago",cn:"日式溏心蛋",emoji:"🥚",type:"simple",price:2}
 ];
 const ramenToppings = [
   {name:"Chashu",cn:"日式叉烧",price:16},
-  {name:"Karaage",cn:"日式炸鸡",price:16},
+  {name:"Chicken Karaage",cn:"日式炸鸡块",price:16},
   {name:"Pork Katsu",cn:"日式炸猪排",price:16},
   {name:"Chicken Katsu",cn:"日式炸鸡排",price:15}
 ];
 const curryToppings = [
-  {name:"Karaage",cn:"日式炸鸡",price:15},
+  {name:"Chicken Karaage",cn:"日式炸鸡块",price:15},
   {name:"Pork Katsu",cn:"日式炸猪排",price:15},
   {name:"Chicken Katsu",cn:"日式炸鸡排",price:14}
 ];
@@ -209,7 +209,7 @@ function renderMenu(){
       choices=`<label class="field" for="top-${p.id}">Choose curry topping 选择咖喱配料 *</label>
         <select id="top-${p.id}"><option value="">Choose one 请选择</option>${optionHTML(curryToppings)}</select>`;
     } else if(p.type==="teriyaki"){
-      choices=`<p class="cn">Teriyaki chicken / 照烧鸡肉</p>`;
+      choices=`<p class="cn">Teriyaki chicken / 照烧鸡排</p>`;
     } else {
       choices=`<p class="cn">${p.cn}</p>`;
     }
