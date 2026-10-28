@@ -511,7 +511,316 @@ async function staffLogout() {
 
   alert("Logged out successfully. 已成功登出。");
 }
-renderMenu();renderCart();
+
+/* ===== ADMIN ORDER MANAGEMENT / 员工订单管理 ===== */
+
+let adminOrderItems = [];
+
+const ADMIN_STORAGE_KEY = "pekoPekoAdminOrdersV1";
+
+function renderAdminOptions() {
+  const id = document.getElementById("adminProduct").value;
+  const box = document.getElementById("adminProductOptions");
+
+  if (!id) {
+    box.innerHTML = "";
+    return;
+  }
+
+  if (id === "ramen") {
+    box.innerHTML = `
+      <label class="field">Soup base 汤底 *</label>
+      <select id="adminSoup">
+        <option value="">Choose / 请选择</option>
+        <option value="Tonkotsu 豚骨">Tonkotsu 豚骨</option>
+        <option value="Shoyu 酱油">Shoyu 酱油</option>
+        <option value="Miso 味噌">Miso 味噌</option>
+      </select>
+      <label class="field">Topping 配料 *</label>
+      <select id="adminTopping">
+        <option value="">Choose / 请选择</option>
+        ${ramenToppings.map((t, i) =>
+          `<option value="${i}">${t.name} ${t.cn} — ${money(t.price)}</option>`
+        ).join("")}
+      </select>`;
+  } else if (id === "curry") {
+    box.innerHTML = `
+      <label class="field">Curry topping 咖喱配料 *</label>
+      <select id="adminTopping">
+        <option value="">Choose / 请选择</option>
+        ${curryToppings.map((t, i) =>
+          `<option value="${i}">${t.name} ${t.cn} — ${money(t.price)}</option>`
+        ).join("")}
+      </select>`;
+  } else {
+    box.innerHTML = "";
+  }
+}
+
+function addAdminItem() {
+  const id = document.getElementById("adminProduct").value;
+  const qty = Number(document.getElementById("adminQty").value);
+
+  if (!id) {
+    alert("Please select a menu item. 请先选择商品。");
+    return;
+  }
+
+  if (!Number.isInteger(qty) || qty < 1) {
+    alert("Quantity must be at least 1. 数量必须至少为 1。");
+    return;
+  }
+
+  const p = products.find(item => item.id === id);
+  let name = "";
+  let price = 0;
+  let details = "";
+
+  if (id === "ramen") {
+    const soup = document.getElementById("adminSoup").value;
+    const ix = document.getElementById("adminTopping").value;
+
+    if (!soup || ix === "") {
+      alert("Choose soup base and topping. 请选择汤底和配料。");
+      return;
+    }
+
+    const t = ramenToppings[Number(ix)];
+    name = `Ramen 拉面 (${soup}) + ${t.name} ${t.cn}`;
+    price = t.price;
+    details = `Soup: ${soup}; Topping: ${t.name}`;
+  } else if (id === "curry") {
+    const ix = document.getElementById("adminTopping").value;
+
+    if (ix === "") {
+      alert("Choose a curry topping. 请选择咖喱配料。");
+      return;
+    }
+
+    const t = curryToppings[Number(ix)];
+    name = `Japanese Curry Donburi 日式咖喱丼 + ${t.cn}`;
+    price = t.price;
+    details = t.name;
+  } else {
+    name = `${p.name} / ${p.cn}`;
+    price = p.price;
+    details = p.cn;
+  }
+
+  const existing = adminOrderItems.find(
+    item => item.name === name && item.price === price
+  );
+
+  if (existing) {
+    existing.qty += qty;
+  } else {
+    adminOrderItems.push({ name, price, qty, details });
+  }
+
+  updateAdminOrderItems();
+
+  document.getElementById("adminProduct").value = "";
+  document.getElementById("adminProductOptions").innerHTML = "";
+  document.getElementById("adminQty").value = 1;
+}
+
+function updateAdminOrderItems() {
+  const text = adminOrderItems.map(item =>
+    `${item.name} x ${item.qty} — ${money(item.price * item.qty)}`
+  ).join("\n");
+
+  document.getElementById("adminItems").value = text;
+
+  const total = adminOrderItems.reduce(
+    (sum, item) => sum + item.price * item.qty, 0
+  );
+
+  document.getElementById("adminTotal").value = total.toFixed(2);
+}
+
+function clearAdminItems() {
+  adminOrderItems = [];
+  updateAdminOrderItems();
+}
+
+function getAdminRecords() {
+  try {
+    const records = JSON.parse(
+      localStorage.getItem(ADMIN_STORAGE_KEY) || "[]"
+    );
+    return Array.isArray(records) ? records : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveAdminOrder(confirmPaid) {
+  const name = document.getElementById("adminName").value.trim();
+  const phone = document.getElementById("adminPhone").value.trim();
+  const date = document.getElementById("adminDate").value;
+  const time = document.getElementById("adminTime").value;
+  const notes = document.getElementById("adminNotes").value.trim();
+
+  if (!name || !date || !time || adminOrderItems.length === 0) {
+    alert("Please enter customer, pickup details and items.\n请填写顾客资料、取餐时间并添加商品。");
+    return;
+  }
+
+  const total = adminOrderItems.reduce(
+    (sum, item) => sum + item.price * item.qty, 0
+  );
+
+  if (!Number.isFinite(total) || total <= 0) {
+    alert("Please check the order total. 请检查订单总额。");
+    return;
+  }
+
+  if (confirmPaid && !confirm(
+    "Confirm that payment has actually been received?\n请确认店家已实际收到款项。"
+  )) {
+    return;
+  }
+
+  const records = getAdminRecords();
+  const today = new Date();
+  const dateCode = date.replaceAll("-", "").slice(2);
+  let orderNumber = "";
+
+  if (confirmPaid) {
+    const prefix = `PP-${dateCode}-`;
+    const usedNumbers = records
+      .filter(r => r.orderNumber && r.orderNumber.startsWith(prefix))
+      .map(r => Number(r.orderNumber.slice(prefix.length)))
+      .filter(Number.isFinite);
+
+    const next = Math.max(0, ...usedNumbers) + 1;
+    orderNumber = prefix + String(next).padStart(3, "0");
+  }
+
+  const record = {
+    id: `${today.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+    orderNumber,
+    customer: name,
+    phone,
+    pickupDate: date,
+    pickupTime: time,
+    items: adminOrderItems.map(item => ({ ...item })),
+    total: Number(total.toFixed(2)),
+    notes,
+    payment: confirmPaid ? "Paid" : "Pending",
+    createdAt: today.toISOString()
+  };
+
+  try {
+    records.push(record);
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(records));
+  } catch (error) {
+    alert("Could not save the order in this browser. 请检查浏览器储存空间或设置。");
+    return;
+  }
+
+  alert(
+    confirmPaid
+      ? `Paid order saved.\n订单已保存。\n${orderNumber}`
+      : "Pending order saved. No order number assigned yet.\n待付款订单已保存，暂未分配订单编号。"
+  );
+
+  document.getElementById("adminName").value = "";
+  document.getElementById("adminPhone").value = "";
+  document.getElementById("adminDate").value = "";
+  document.getElementById("adminTime").value = "";
+  document.getElementById("adminNotes").value = "";
+  document.getElementById("adminPayment").value =
+    confirmPaid ? "Paid" : "Pending";
+
+  clearAdminItems();
+  renderRecords();
+}
+
+function escapeAdminHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+function renderRecords() {
+  const date = document.getElementById("recordDate").value;
+  const records = getAdminRecords()
+    .filter(r => !date || r.pickupDate === date)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const total = records.reduce((sum, r) => sum + Number(r.total || 0), 0);
+
+  document.getElementById("recordSummary").textContent =
+    `Orders 订单: ${records.length} | Total 总额: ${money(total)}`;
+
+  const list = document.getElementById("recordsList");
+
+  if (!records.length) {
+    list.innerHTML = '<p class="empty">No records found. 暂无订单记录。</p>';
+    return;
+  }
+
+  list.innerHTML = records.map(r => `
+    <article class="item" style="margin-top:12px">
+      <strong>${escapeAdminHTML(r.orderNumber || "Pending / 待确认编号")}</strong>
+      <p>${escapeAdminHTML(r.customer)} · ${escapeAdminHTML(r.phone)}</p>
+      <p>Pickup: ${escapeAdminHTML(r.pickupDate)} · ${escapeAdminHTML(r.pickupTime)}</p>
+      <p>${r.items.map(i =>
+        `${escapeAdminHTML(i.name)} × ${Number(i.qty)} — ${money(Number(i.price) * Number(i.qty))}`
+      ).join("<br>")}</p>
+      <strong>Total: ${money(Number(r.total || 0))}</strong>
+      <p>Payment: ${escapeAdminHTML(r.payment)}</p>
+      <p>${escapeAdminHTML(r.notes)}</p>
+    </article>
+  `).join("");
+}
+
+function exportRecords() {
+  const date = document.getElementById("recordDate").value;
+  const records = getAdminRecords().filter(
+    r => !date || r.pickupDate === date
+  );
+
+  if (!records.length) {
+    alert("No records to export. 没有可导出的记录。");
+    return;
+  }
+
+  const cell = value =>
+    '"' + String(value ?? "").replace(/"/g, '""') + '"';
+
+  const rows = [
+    ["Order No.", "Customer", "Phone", "Pickup Date", "Pickup Time",
+     "Items", "Total RM", "Payment", "Notes"],
+    ...records.map(r => [
+      r.orderNumber, r.customer, r.phone, r.pickupDate, r.pickupTime,
+      r.items.map(i => `${i.name} x ${i.qty}`).join("; "),
+      Number(r.total).toFixed(2), r.payment, r.notes
+    ])
+  ];
+
+  const csv = "\uFEFF" + rows.map(row => row.map(cell).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = `peko-orders-${date || "all"}.csv`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+/* ===== INITIALIZE / 初始化 ===== */
+renderMenu();
+renderCart();
+renderRecords();
+
 </script>
 </body>
 </html>
