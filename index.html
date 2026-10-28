@@ -837,6 +837,180 @@ function escapeAdminHTML(value) {
 }
 
 
+async function printOrderTicket(id) {
+  if (!currentStaff) {
+    alert("Please log in first. 请先登录。");
+    return;
+  }
+
+  // Open immediately from the button click to reduce popup blocking.
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    alert(
+      "Please allow pop-ups for this website, then try again.\n" +
+      "请允许此网站打开弹出窗口，然后重试。"
+    );
+    return;
+  }
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Peko Peko Order Ticket</title>
+      <style>
+        * { box-sizing: border-box; }
+        body {
+          font-family: Arial, "Noto Sans SC", sans-serif;
+          color: #111;
+          margin: 0 auto;
+          padding: 12px;
+          max-width: 380px;
+          font-size: 14px;
+          overflow-wrap: anywhere;
+        }
+        .center { text-align: center; }
+        .brand { font-size: 19px; font-weight: bold; }
+        .muted { color: #555; font-size: 12px; }
+        .rule {
+          border: 0;
+          border-top: 1px dashed #555;
+          margin: 12px 0;
+        }
+        .line {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          margin: 7px 0;
+        }
+        .item { margin: 10px 0; }
+        .item-name { font-weight: bold; }
+        .total { font-size: 18px; font-weight: bold; }
+        .notes { white-space: pre-wrap; }
+        @page { margin: 3mm; }
+        @media print {
+          body { padding: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      </style>
+    </head>
+    <body>
+      <p>Loading order... 正在读取订单……</p>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  try {
+    const { data: row, error } = await supabaseClient
+      .from("orders")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    if (!row) throw new Error("Order not found. 找不到订单。");
+
+    const esc = escapeAdminHTML;
+    const items = Array.isArray(row.items) ? row.items : [];
+
+    const itemHTML = items.map(item => {
+      const qty = Number(item.qty || 0);
+      const price = Number(item.price || 0);
+      return `
+        <div class="item">
+          <div class="item-name">${esc(item.name || "Item")}</div>
+          ${item.details
+            ? `<div class="muted">${esc(item.details)}</div>`
+            : ""}
+          <div class="line">
+            <span>Qty 数量: ${qty}</span>
+            <span>${money(price * qty)}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    printWindow.document.body.innerHTML = `
+      <div class="center">
+        <div class="brand">PEKO PEKO STALL</div>
+        <div>ORDER TICKET / 取货单</div>
+        <div class="muted">Japanese comfort food · 日式美食</div>
+      </div>
+
+      <hr class="rule">
+
+      <div class="center">
+        <div class="muted">ORDER NUMBER / 订单编号</div>
+        <div class="brand">${esc(row.order_number || "PENDING / 待确认")}</div>
+      </div>
+
+      <hr class="rule">
+
+      <div><b>Customer 顾客：</b>${esc(row.customer || "")}</div>
+      <div><b>Phone 电话：</b>${esc(row.phone || "-")}</div>
+      <div><b>Pickup 取货日期：</b>${esc(row.pickup_date || "")}</div>
+      <div><b>Time 时间：</b>${esc(row.pickup_time || "")}</div>
+
+      <hr class="rule">
+
+      <b>ORDER ITEMS / 订单商品</b>
+      ${itemHTML || "<p>No items / 没有商品</p>"}
+
+      <hr class="rule">
+
+      <div class="line total">
+        <span>TOTAL 总额</span>
+        <span>${money(Number(row.total || 0))}</span>
+      </div>
+
+      <div><b>Payment 付款状态：</b>${esc(row.payment || "")}</div>
+
+      ${row.notes ? `
+        <hr class="rule">
+        <b>Notes 备注：</b>
+        <div class="notes">${esc(row.notes)}</div>
+      ` : ""}
+
+      <hr class="rule">
+
+      <div class="center">
+        <b>Thank you! 谢谢惠顾！</b>
+        <p class="muted">Peko Peko Stall</p>
+      </div>
+
+      <div class="no-print center">
+        <hr>
+        <button onclick="window.print()">Print / 打印</button>
+      </div>
+    `;
+
+    printWindow.document.title =
+      "Peko Peko " + (row.order_number || "Order Ticket");
+
+    // Show the print dialog after the ticket has been rendered.
+    printWindow.focus();
+    setTimeout(() => {
+      if (!printWindow.closed) {
+        printWindow.print();
+      }
+    }, 500);
+
+  } catch (error) {
+    console.error("Print ticket failed:", error);
+
+    if (!printWindow.closed) {
+      printWindow.document.body.innerHTML = `
+        <p>Could not load order. 无法读取订单。</p>
+        <p>${escapeAdminHTML(error.message || "")}</p>
+      `;
+    }
+  }
+}
+
 async function renderRecords() {
   const list = document.getElementById("recordsList");
   const summary = document.getElementById("recordSummary");
@@ -889,6 +1063,13 @@ async function renderRecords() {
           `${escapeAdminHTML(i.name)} × ${Number(i.qty)} — ${money(Number(i.price) * Number(i.qty))}`
         ).join("<br>")}</p>
         <strong>Total: ${money(Number(r.total || 0))}</strong>
+        <button
+  type="button"
+  class="secondary"
+  style="margin-top:10px"
+  onclick="printOrderTicket('${escapeAdminHTML(r.id)}')">
+  Print Ticket / 打印取货单
+</button>
         <p>Payment: ${escapeAdminHTML(r.payment)}</p>
         ${r.payment === "Pending" ? `
           <button
