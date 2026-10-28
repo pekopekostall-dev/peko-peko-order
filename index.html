@@ -173,8 +173,15 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     <p style="font-size:12px;color:#666;line-height:1.6">Pickup only; no delivery available. 自取服务，暂不提供外送。<br>Payment is not processed on this website. 此网页不处理付款。</p>
   </section>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+<script>const SUPABASE_URL = "https://nhhwqrprvowmwfdfvwrh.supabase.co/";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TfaAFNb5HKyv3l2t4y7-pw_jUylgCcD";
 
-<script>
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 const WHATSAPP_NUMBER = "601123015207"; // Malaysia number in international format, digits only
 const products = [
   {id:"ramen",category:"Ramen 拉面",name:"Ramen",cn:"拉面",emoji:"🍜",type:"ramen",basePrice:16},
