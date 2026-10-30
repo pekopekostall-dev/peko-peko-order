@@ -224,7 +224,14 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
     </select>
 
     <label class="field" for="customerPhone">Contact number 联系电话</label>
-    <input id="customerPhone" placeholder="Your phone number / 您的电话号码" inputmode="tel">
+    <input
+  id="customerPhone"
+  type="tel"
+  placeholder="Your phone number / 您的电话号码"
+  inputmode="tel"
+  autocomplete="tel"
+  required
+>
 
     <label class="field" for="notes">Notes 备注（optional 选填）</label>
     <textarea id="notes" placeholder="Allergies or special requests / 过敏信息或特别要求"></textarea>
@@ -238,6 +245,42 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
       <button class="secondary" onclick="closeCheckout()">Back to menu 返回菜单</button>
       <button class="checkout" onclick="sendWhatsApp()">Send via WhatsApp 通过 WhatsApp 下单</button>
     </div>
+<div id="paymentPanel" style="display:none;margin-top:20px">
+  <div class="notice">
+    <strong>Order saved! / 订单已保存！</strong>
+    Your order is pending payment. Please scan the DuitNow QR below.
+    <br>订单已保存，等待付款。请扫描以下 DuitNow QR。
+  </div>
+
+  <div style="text-align:center;background:#fff;padding:16px;border:1px solid var(--line);border-radius:12px">
+    <h3 style="margin-top:0">DuitNow QR Payment</h3>
+    <img
+      src="duitnow-qr.jpeg"
+      alt="Peko Peko DuitNow QR"
+      style="width:100%;max-width:300px;display:block;margin:12px auto;object-fit:contain"
+    >
+    <p style="font-size:14px">Amount to pay / 应付金额</p>
+    <div id="paymentAmount" style="font-size:28px;font-weight:700;color:var(--accent)">RM 0.00</div>
+    <p style="font-size:12px;color:#666">
+      Please enter the exact amount when scanning the QR.
+      <br>扫码后请自行输入准确金额。
+    </p>
+  </div>
+
+  <button
+    type="button"
+    class="checkout"
+    onclick="notifyWhatsAppPaid()"
+    style="width:100%;margin-top:14px">
+    I've Paid / 我已付款
+  </button>
+
+  <p style="font-size:12px;color:#666;line-height:1.5">
+    Your order is not confirmed until our staff verifies your payment.
+    <br>店员核实收到款项后，订单才正式确认。
+  </p>
+</div>
+
     <p style="font-size:12px;color:#666;line-height:1.6">Pickup only; no delivery available. 自取服务，暂不提供外送。<br>Payment is not processed on this website. 此网页不处理付款。</p>
   </section>
 </div>
@@ -358,26 +401,185 @@ function updatePickupDate(){
     help.style.color="#666";
   }
 }
-function sendWhatsApp(){
-  if(!totalQty()){alert("Your cart is empty.\\n购物车是空的。");return}
-  const name=document.getElementById("customerName").value.trim();
-  const date=document.getElementById("pickupDate").value;
-  const time=document.getElementById("pickupTime").value;
-  if(!name){alert("Please enter your name.\\n请输入姓名。");document.getElementById("customerName").focus();return}
-  if(!date||date<document.getElementById("pickupDate").min){alert("Please select a valid pickup date at least one day ahead.\\n请选择至少提前一天的有效取餐日期。");return}
-  if(!time){alert("Please select a pickup time.\\n请选择取餐时间。");return}
-  if(!document.getElementById("paymentAcknowledged").checked){alert("Please acknowledge the payment and confirmation policy.\\n请先确认付款与订单确定条款。");return}
-  const phone=document.getElementById("customerPhone").value.trim();
-  const notes=document.getElementById("notes").value.trim();
-  let msg=`PEKO PEKO STALL — NEW ORDER / 新订单%0AName 姓名: ${encodeURIComponent(name)}%0APickup date 取餐日期: ${encodeURIComponent(date)}%0APickup time 取餐时间: ${encodeURIComponent(time)}`;
-  if(phone)msg+=`%0AContact 联系电话: ${encodeURIComponent(phone)}`;
-  msg+="%0A%0AItems 商品:";
-  Object.values(cart).forEach(p=>{msg+=`%0A${encodeURIComponent(p.name)} x ${p.qty} — ${encodeURIComponent(money(p.price*p.qty))}`});
-  msg+=`%0A%0ASubtotal 小计: ${encodeURIComponent(money(totalPrice()))}`;
-  if(notes)msg+=`%0ANotes 备注: ${encodeURIComponent(notes)}`;
-  msg+="%0A%0APickup only. Order is final only after successful payment and shop confirmation.%0A仅提供自取；成功付款并经店家确认后，订单才最终确定。";
-  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`,"_blank","noopener");
+
+let customerOrderId = null;
+let customerOrderAmount = 0;
+
+async function sendWhatsApp(){
+  if(customerOrderId){
+    alert("Your order has already been saved. 订单已经保存。");
+    return;
+  }
+
+  if(!totalQty()){
+    alert("Your cart is empty.\n购物车是空的。");
+    return;
+  }
+
+  const name = document.getElementById("customerName").value.trim();
+  const date = document.getElementById("pickupDate").value;
+  const timeRaw = document.getElementById("pickupTime").value;
+  const phone = document.getElementById("customerPhone").value.trim();
+  const notes = document.getElementById("notes").value.trim();
+
+  if(!name){
+    alert("Please enter your name.\n请输入姓名。");
+    document.getElementById("customerName").focus();
+    return;
+  }
+
+  if(!phone || phone.replace(/[^0-9]/g, "").length < 8){
+    alert("Please enter a valid phone number.\n请输入有效电话号码。");
+    document.getElementById("customerPhone").focus();
+    return;
+  }
+
+  if(!date || date < document.getElementById("pickupDate").min){
+    alert("Please select a valid pickup date.\n请选择有效取货日期。");
+    return;
+  }
+
+  if(!timeRaw){
+    alert("Please select a pickup time.\n请选择取货时间。");
+    return;
+  }
+
+  if(!document.getElementById("paymentAcknowledged").checked){
+    alert("Please acknowledge the payment policy.\n请先确认付款条款。");
+    return;
+  }
+
+  // Convert bilingual website values into database values.
+  const pickupTime = timeRaw.split(" / ")[0].trim();
+
+  // Convert cart items into the format expected by Supabase.
+  const orderItems = Object.values(cart).map(p => {
+    const item = {
+      id: p.id,
+      qty: p.qty
+    };
+
+    if(p.id === "ramen"){
+      const soupMatch = p.details.match(/Soup base: ([^;]+)/);
+      const toppingMatch = p.details.match(/Topping: ([^/;]+)/);
+
+      if(!soupMatch || !toppingMatch){
+        throw new Error("Could not read ramen options.");
+      }
+
+      item.soup = soupMatch[1].trim().split(" ")[0];
+      item.topping = toppingMatch[1].trim();
+    }
+
+    if(p.id === "curry"){
+      const match = p.name.match(
+        /\+ (Chicken Karaage|Pork Katsu|Chicken Katsu)/
+      );
+
+      if(!match){
+        throw new Error("Could not read curry topping.");
+      }
+
+      item.topping = match[1];
+    }
+
+    return item;
+  });
+
+  const submitButton = document.querySelector(
+    '#backdrop button[onclick="sendWhatsApp()"]'
+  );
+
+  submitButton.disabled = true;
+  submitButton.textContent = "Saving order... 正在保存订单";
+
+  try{
+    const {data, error} = await supabaseClient.rpc(
+      "submit_customer_order",
+      {
+        p_customer: name,
+        p_phone: phone,
+        p_pickup_date: date,
+        p_pickup_time: pickupTime,
+        p_items: orderItems,
+        p_notes: notes
+      }
+    );
+
+    if(error) throw error;
+
+    if(!data){
+      throw new Error("No order ID returned by Supabase.");
+    }
+
+    // Save successful order information locally for this checkout.
+    customerOrderId = data;
+    customerOrderAmount = totalPrice();
+
+    document.getElementById("paymentAmount").textContent =
+      money(customerOrderAmount);
+
+    // Show payment instructions only after the database confirms saving.
+    document.getElementById("paymentPanel").style.display = "block";
+
+    document.querySelector(".modal-actions").style.display = "none";
+
+    document.getElementById("paymentPanel").scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+
+  }catch(error){
+    console.error("Customer order submission failed:", error);
+
+    alert(
+      "Could not save your order.\n无法保存订单。\n\n" +
+      (error.message || "Please try again. 请重试。")
+    );
+
+  }finally{
+    if(!customerOrderId){
+      submitButton.disabled = false;
+      submitButton.textContent =
+        "Submit Order 提交订单";
+    }
+  }
 }
+
+function notifyWhatsAppPaid(){
+  if(!customerOrderId){
+    alert("Please submit your order first.\n请先提交订单。");
+    return;
+  }
+
+  const name = document.getElementById("customerName").value.trim();
+  const phone = document.getElementById("customerPhone").value.trim();
+  const date = document.getElementById("pickupDate").value;
+  const time = document.getElementById("pickupTime").value;
+  const notes = document.getElementById("notes").value.trim();
+
+  let msg =
+    `PEKO PEKO STALL — PAYMENT NOTIFICATION / 付款通知` +
+    `\nCustomer: ${name}` +
+    `\nPhone: ${phone}` +
+    `\nPickup date: ${date}` +
+    `\nPickup time: ${time}` +
+    `\nOrder reference: ${customerOrderId}` +
+    `\nAmount: ${money(customerOrderAmount)}` +
+    `\nPayment status: Pending — customer says paid`;
+
+  if(notes) msg += `\nNotes: ${notes}`;
+
+  msg +=
+    "\n\nPlease verify payment in TNG Merchant before confirming this order." +
+    "\n请在 TNG Merchant 核实收款后再确认订单。";
+
+  const url =
+    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+
+  window.open(url, "_blank", "noopener");
+}
+
 // ===== STAFF AUTHENTICATION / 员工登录验证 =====
 
 let currentStaff = null;
