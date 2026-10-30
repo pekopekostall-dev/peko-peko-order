@@ -546,6 +546,7 @@ async function sendWhatsApp(){
   }
 }
 
+```js
 function notifyWhatsAppPaid(){
   if(!customerOrderId){
     alert("Please submit your order first.\n请先提交订单。");
@@ -556,29 +557,23 @@ function notifyWhatsAppPaid(){
   const phone = document.getElementById("customerPhone").value.trim();
   const date = document.getElementById("pickupDate").value;
   const time = document.getElementById("pickupTime").value;
-  const notes = document.getElementById("notes").value.trim();
 
-  let msg =
-    `PEKO PEKO STALL — PAYMENT NOTIFICATION / 付款通知` +
+  const msg =
+    `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
     `\nCustomer: ${name}` +
     `\nPhone: ${phone}` +
-    `\nPickup date: ${date}` +
-    `\nPickup time: ${time}` +
-    `\nOrder reference: ${customerOrderId}` +
+    `\nPickup: ${date}, ${time}` +
     `\nAmount: ${money(customerOrderAmount)}` +
-    `\nPayment status: Pending — customer says paid`;
-
-  if(notes) msg += `\nNotes: ${notes}`;
-
-  msg +=
-    "\n\nPlease verify payment in TNG Merchant before confirming this order." +
-    "\n请在 TNG Merchant 核实收款后再确认订单。";
+    `\n\nCustomer says payment has been made.` +
+    `\nPlease verify in TNG Merchant before confirming.` +
+    `\n\n顾客已通知付款，请先在 TNG Merchant 核实收款，再确认订单。`;
 
   const url =
     `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 
   window.open(url, "_blank", "noopener");
 }
+```
 
 // ===== STAFF AUTHENTICATION / 员工登录验证 =====
 
