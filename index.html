@@ -613,16 +613,25 @@ async function notifyWhatsAppPaid(){
     const date = document.getElementById("pickupDate").value;
     const time = document.getElementById("pickupTime").value;
 
-    const msg =
-      `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
-      `\nOrder Number: ${orderNumber}` +
-      `\nCustomer: ${name}` +
-      `\nPhone: ${phone}` +
-      `\nPickup: ${date}, ${time}` +
-      `\nAmount: ${money(customerOrderAmount)}` +
-      `\n\nCustomer says payment has been made.` +
-      `\nPlease verify payment before confirming the order.` +
-      `\n\n顾客已通知付款，请核实收款后才确认订单。`;
+    const orderDetails = Object.values(cart).map((item, index) =>
+  `${index + 1}. ${item.name}` +
+  `\n   ${item.details}` +
+  `\n   Qty: ${item.qty} × ${money(item.price)} = ${money(item.qty * item.price)}`
+).join("\n\n");
+
+const msg =
+  `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
+  `\n\nOrder Number: ${orderNumber}` +
+  `\nCustomer: ${name}` +
+  `\nPhone: ${phone}` +
+  `\nPickup: ${date}, ${time}` +
+  `\n\nORDER DETAILS / 订单内容` +
+  `\n${orderDetails}` +
+  `\n\nTOTAL 总额: ${money(customerOrderAmount)}` +
+  `\n\nNotes 备注: ${document.getElementById("notes").value.trim() || "None / 无"}` +
+  `\n\nCustomer says payment has been made.` +
+  `\nPlease verify payment before confirming the order.` +
+  `\n\n顾客已通知付款，请核实收款后才确认订单。`;
 
     const url =
       `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
