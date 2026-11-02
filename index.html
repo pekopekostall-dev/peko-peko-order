@@ -213,7 +213,10 @@ Please verify payments before confirming orders.
 
     <label class="field" for="pickupDate">Pickup date 取餐日期 *</label>
     <input id="pickupDate" type="date" onchange="updatePickupDate()">
-    <p id="dateHelp" style="font-size:12px;color:#666;line-height:1.5;margin:6px 0">Please select a date at least one day ahead. 请选至少提前一天的日期。</p>
+    <p id="dateHelp" style="font-size:12px;color:#666;line-height:1.5;margin:6px 0">
+  Closed every Friday & Saturday. 星期五及星期六休息。
+  <br>Please select another pickup date. 请选择其他取餐日期。
+</p>
 
     <label class="field" for="pickupTime">Pickup time 取餐时间 *</label>
     <select id="pickupTime">
@@ -383,25 +386,73 @@ function renderCheckout(){
   document.getElementById("modalTotal").textContent="Subtotal 小计: "+money(totalPrice());
 }
 function localDateString(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
+function isClosedPickupDate(dateString){
+  if(!dateString) return false;
+
+  const parts = dateString.split("-").map(Number);
+  const date = new Date(parts[0], parts[1] - 1, parts[2]);
+  const day = date.getDay();
+
+  // Friday = 5, Saturday = 6
+  return day === 5 || day === 6;
+}
+
 function setMinimumDate(){
-  const now=new Date();
-  // Orders close at 7 PM on the day before pickup. If it is already 7 PM, the earliest pickup is pushed one additional day.
-  const min=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  if(now.getHours()>=19)min.setDate(min.getDate()+2);else min.setDate(min.getDate()+1);
-  const input=document.getElementById("pickupDate");
-  input.min=localDateString(min);
-  if(!input.value||input.value<input.min)input.value=input.min;
+  const now = new Date();
+
+  const min = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  // Keep the original one-day advance and 7 PM cutoff.
+  if(now.getHours() >= 19){
+    min.setDate(min.getDate() + 2);
+  }else{
+    min.setDate(min.getDate() + 1);
+  }
+
+  // Skip Friday and Saturday.
+  while(min.getDay() === 5 || min.getDay() === 6){
+    min.setDate(min.getDate() + 1);
+  }
+
+  const input = document.getElementById("pickupDate");
+  input.min = localDateString(min);
+
+  if(!input.value || input.value < input.min ||
+     isClosedPickupDate(input.value)){
+    input.value = input.min;
+  }
+
   updatePickupDate();
 }
+
 function updatePickupDate(){
-  const input=document.getElementById("pickupDate");
-  const help=document.getElementById("dateHelp");
-  if(input.value && input.min && input.value<input.min){
-    help.textContent="This date is too soon. Please choose a later date. 日期太早，请选择更晚的日期。";
-    help.style.color="#b00020";
+  const input = document.getElementById("pickupDate");
+  const help = document.getElementById("dateHelp");
+
+  if(input.value && isClosedPickupDate(input.value)){
+    input.value = "";
+
+    help.textContent =
+      "We are closed on Fridays and Saturdays. Please choose another date. 星期五及星期六休息，请选择其他日期。";
+
+    help.style.color = "#b00020";
+    return;
+  }
+
+  if(input.value && input.min && input.value < input.min){
+    help.textContent =
+      "This date is too soon. Please choose a later date. 日期太早，请选择更晚的日期。";
+
+    help.style.color = "#b00020";
   }else{
-    help.textContent="Please order at least one day ahead. Orders close at 7:00 PM the day before pickup. 请至少提前一天预订，取餐前一天晚上 7:00 截单。";
-    help.style.color="#666";
+    help.textContent =
+      "Closed every Friday & Saturday. Please order at least one day ahead. Orders close at 7:00 PM the day before pickup. 每逢星期五及星期六休息。请至少提前一天预订，取餐前一天晚上 7:00 截单。";
+
+    help.style.color = "#666";
   }
 }
 
@@ -892,7 +943,10 @@ async function saveAdminOrder(confirmPaid) {
     alert("Please enter customer, pickup details and items.\n请填写顾客资料、取餐时间并添加商品。");
     return;
   }
-
+if(isClosedPickupDate(date)){
+  alert("We are closed on Fridays and Saturdays.\n星期五及星期六休息，不能登记这两天的订单。");
+  return;
+}
   const total = adminOrderItems.reduce(
     (sum, item) => sum + item.price * item.qty, 0
   );
