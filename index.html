@@ -144,7 +144,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 </section>
 <section id="adminPanel" class="wrap" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-    <div><h2 style="margin-top:0">Order Management 订单管理</h2><p class="section-sub">WhatsApp orders must be entered here manually. Orders become confirmed only after payment is received. 请手动登记 WhatsApp 订单；收到付款后才可确认。</p></div>
+    <div><h2 style="margin-top:0">Order Management 订单管理</h2><p class="section-sub">
+Customer orders are automatically saved to the cloud.
+顾客订单会自动保存至云端。
+</p></div>
     <button class="secondary" onclick="toggleAdmin(false)">Back to menu 返回菜单</button>
     <button
   type="button"
@@ -157,35 +160,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 All orders are securely stored in the cloud and can be accessed by authorized staff on different devices.
 所有订单都会保存在云端，获授权的员工可通过不同设备登录查看及管理。
 Please verify payments before confirming orders.
-确认订单前，请务必先核实付款。  <h2>Register WhatsApp order 登记 WhatsApp 订单</h2>
-  <div class="item" style="gap:4px">
-    <label class="field" for="adminName">Customer name 顾客姓名 *</label><input id="adminName" placeholder="Customer name / 顾客姓名">
-    <label class="field" for="adminPhone">Contact number 联系电话</label><input id="adminPhone" inputmode="tel" placeholder="Optional / 选填">
-    <label class="field" for="adminDate">Pickup date 取餐日期 *</label><input id="adminDate" type="date">
-    <label class="field" for="adminTime">Pickup time 取餐时段 *</label><select id="adminTime"><option value="">Choose / 选择</option><option>1:00 PM / 下午 1:00</option><option>1:30 PM / 下午 1:30</option><option>2:00 PM / 下午 2:00</option><option>6:00 PM / 下午 6:00</option><option>6:30 PM / 下午 6:30</option><option>7:00 PM / 下午 7:00</option></select>
-    <h3 style="margin:12px 0 4px">Build order items 选择商品并自动计算</h3>
-    <p style="font-size:12px;color:#666;margin:0 0 8px">Select menu items and quantity. The item list and total will update automatically. 选择商品与数量，商品清单和总额会自动更新。</p>
-    <label class="field" for="adminProduct">Menu item 菜单商品</label>
-    <select id="adminProduct" onchange="renderAdminOptions()">
-      <option value="">Choose item / 选择商品</option>
-      <option value="ramen">Ramen 拉面</option>
-      <option value="teriyaki">Teriyaki Chicken Donburi 照烧鸡排丼 — RM 15</option>
-      <option value="curry">Japanese Curry Donburi 日式咖喱丼</option>
-      <option value="karaage"> Chicken Karaage 唐扬鸡块/日式炸鸡块— RM 11</option>
-      <option value="egg">Ajitsuke Tamago 日式溏心蛋 — RM 2</option>
-    </select>
-    <div id="adminProductOptions"></div>
-    <label class="field" for="adminQty">Quantity 数量</label>
-    <input id="adminQty" type="number" min="1" step="1" value="1">
-    <button type="button" class="secondary" onclick="addAdminItem()" style="margin-top:8px">＋ Add item 添加商品</button>
-    <label class="field" for="adminItems">Items & options 商品与配料 *</label><textarea id="adminItems" rows="4" placeholder="Add items above / 请在上方选择商品并添加"></textarea>
-    <label class="field" for="adminTotal">Total amount (RM) 自动计算总额</label><input id="adminTotal" type="number" min="0" step="0.01" placeholder="Total / 总额" readonly>
-    <button type="button" class="secondary" onclick="clearAdminItems()" style="margin-top:6px">Clear items 清空商品</button>
-    <label class="field" for="adminNotes">Notes / WhatsApp reference 备注 / WhatsApp 备注</label><textarea id="adminNotes" rows="2" placeholder="Payment reference, allergies, special requests / 付款参考、过敏信息、特别要求"></textarea>
-    <label class="field" for="adminPayment">Payment status 付款状态 *</label><select id="adminPayment"><option value="Pending">Pending / 待付款</option><option value="Paid">Paid / 已付款</option></select>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><button class="secondary" onclick="saveAdminOrder(false)">Save pending 保存待处理</button><button class="add" onclick="saveAdminOrder(true)">Confirm paid order 确认已付款订单</button></div>
-    <p style="font-size:12px;color:#666;line-height:1.5">Order number is assigned when payment is confirmed. Format: PP-YYMMDD-001. 订单编号只在确认收款时生成。</p>
-  </div>
+确认订单前，请务必先核实付款。  
   <h2>Daily order records 每日订单记录</h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
     <div style="flex:1;min-width:160px"><label class="field" for="recordDate">Pickup date filter 按取餐日期筛选</label><input id="recordDate" type="date" onchange="renderRecords()"></div>
@@ -593,40 +568,97 @@ async function sendWhatsApp(){
 
   }finally{
     if(!customerOrderId){
-      submitButton.disabled = false;
-      submitButton.textContent =
-        "Submit Order 提交订单";
-    }
+  submitButton.disabled = false;
+  submitButton.textContent =
+    "Send via WhatsApp 通过 WhatsApp 下单";
+}
   }
 }
 
 
-function notifyWhatsAppPaid(){
+
+async function notifyWhatsAppPaid(){
   if(!customerOrderId){
     alert("Please submit your order first.\n请先提交订单。");
     return;
   }
 
-  const name = document.getElementById("customerName").value.trim();
-  const phone = document.getElementById("customerPhone").value.trim();
-  const date = document.getElementById("pickupDate").value;
-  const time = document.getElementById("pickupTime").value;
+  const button = document.querySelector(
+    '#paymentPanel button[onclick="notifyWhatsAppPaid()"]'
+  );
 
-  const msg =
-    `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
-    `\nCustomer: ${name}` +
-    `\nPhone: ${phone}` +
-    `\nPickup: ${date}, ${time}` +
-    `\nAmount: ${money(customerOrderAmount)}` +
-    `\n\nCustomer says payment has been made.` +
-    `\nPlease verify in TNG Merchant before confirming.` +
-    `\n\n顾客已通知付款，请先在 TNG Merchant 核实收款，再确认订单。`;
+  if(button.disabled) return;
 
-  const url =
-    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+  button.disabled = true;
+  button.textContent = "Processing... 正在处理";
 
-  window.open(url, "_blank", "noopener");
+  // Open a blank tab immediately to reduce popup blocking.
+  const whatsappWindow = window.open("about:blank", "_blank");
+
+  try{
+    // Generate the order number in Supabase.
+    // Repeated clicks return the same number.
+    const {data: orderNumber, error} = await supabaseClient.rpc(
+      "customer_mark_payment_notified",
+      {
+        p_order_id: customerOrderId
+      }
+    );
+
+    if(error) throw error;
+    if(!orderNumber) throw new Error("No order number returned.");
+
+    const name = document.getElementById("customerName").value.trim();
+    const phone = document.getElementById("customerPhone").value.trim();
+    const date = document.getElementById("pickupDate").value;
+    const time = document.getElementById("pickupTime").value;
+
+    const msg =
+      `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
+      `\nOrder Number: ${orderNumber}` +
+      `\nCustomer: ${name}` +
+      `\nPhone: ${phone}` +
+      `\nPickup: ${date}, ${time}` +
+      `\nAmount: ${money(customerOrderAmount)}` +
+      `\n\nCustomer says payment has been made.` +
+      `\nPlease verify payment before confirming the order.` +
+      `\n\n顾客已通知付款，请核实收款后才确认订单。`;
+
+    const url =
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+
+    alert(
+      "Order number assigned: " + orderNumber +
+      "\n订单编号已生成。\n\n" +
+      "Please send the WhatsApp message to notify the shop.\n" +
+      "请发送 WhatsApp 信息通知店家。"
+    );
+
+    if(whatsappWindow && !whatsappWindow.closed){
+      whatsappWindow.location.href = url;
+    }else{
+      window.location.href = url;
+    }
+
+    button.textContent = "WhatsApp Notification Ready 已生成通知";
+
+  }catch(error){
+    console.error("Payment notification failed:", error);
+
+    if(whatsappWindow && !whatsappWindow.closed){
+      whatsappWindow.close();
+    }
+
+    alert(
+      "Could not process payment notification.\n无法处理付款通知。\n\n" +
+      (error.message || "Please try again. 请重试。")
+    );
+
+    button.disabled = false;
+    button.textContent = "I've Paid / 我已付款";
+  }
 }
+
 
 
 // ===== STAFF AUTHENTICATION / 员工登录验证 =====
@@ -767,134 +799,8 @@ async function staffLogout() {
 
 /* ===== ADMIN ORDER MANAGEMENT / 员工订单管理 ===== */
 
-let adminOrderItems = [];
 
-const ADMIN_STORAGE_KEY = "pekoPekoAdminOrdersV1";
 
-function renderAdminOptions() {
-  const id = document.getElementById("adminProduct").value;
-  const box = document.getElementById("adminProductOptions");
-
-  if (!id) {
-    box.innerHTML = "";
-    return;
-  }
-
-  if (id === "ramen") {
-    box.innerHTML = `
-      <label class="field">Soup base 汤底 *</label>
-      <select id="adminSoup">
-        <option value="">Choose / 请选择</option>
-        <option value="Tonkotsu 豚骨">Tonkotsu 豚骨</option>
-        <option value="Shoyu 酱油">Shoyu 酱油</option>
-        <option value="Miso 味噌">Miso 味噌</option>
-      </select>
-      <label class="field">Topping 配料 *</label>
-      <select id="adminTopping">
-        <option value="">Choose / 请选择</option>
-        ${ramenToppings.map((t, i) =>
-          `<option value="${i}">${t.name} ${t.cn} — ${money(t.price)}</option>`
-        ).join("")}
-      </select>`;
-  } else if (id === "curry") {
-    box.innerHTML = `
-      <label class="field">Curry topping 咖喱配料 *</label>
-      <select id="adminTopping">
-        <option value="">Choose / 请选择</option>
-        ${curryToppings.map((t, i) =>
-          `<option value="${i}">${t.name} ${t.cn} — ${money(t.price)}</option>`
-        ).join("")}
-      </select>`;
-  } else {
-    box.innerHTML = "";
-  }
-}
-
-function addAdminItem() {
-  const id = document.getElementById("adminProduct").value;
-  const qty = Number(document.getElementById("adminQty").value);
-
-  if (!id) {
-    alert("Please select a menu item. 请先选择商品。");
-    return;
-  }
-
-  if (!Number.isInteger(qty) || qty < 1) {
-    alert("Quantity must be at least 1. 数量必须至少为 1。");
-    return;
-  }
-
-  const p = products.find(item => item.id === id);
-  let name = "";
-  let price = 0;
-  let details = "";
-
-  if (id === "ramen") {
-    const soup = document.getElementById("adminSoup").value;
-    const ix = document.getElementById("adminTopping").value;
-
-    if (!soup || ix === "") {
-      alert("Choose soup base and topping. 请选择汤底和配料。");
-      return;
-    }
-
-    const t = ramenToppings[Number(ix)];
-    name = `Ramen 拉面 (${soup}) + ${t.name} ${t.cn}`;
-    price = t.price;
-    details = `Soup: ${soup}; Topping: ${t.name}`;
-  } else if (id === "curry") {
-    const ix = document.getElementById("adminTopping").value;
-
-    if (ix === "") {
-      alert("Choose a curry topping. 请选择咖喱配料。");
-      return;
-    }
-
-    const t = curryToppings[Number(ix)];
-    name = `Japanese Curry Donburi 日式咖喱丼 + ${t.cn}`;
-    price = t.price;
-    details = t.name;
-  } else {
-    name = `${p.name} / ${p.cn}`;
-    price = p.price;
-    details = p.cn;
-  }
-
-  const existing = adminOrderItems.find(
-    item => item.name === name && item.price === price
-  );
-
-  if (existing) {
-    existing.qty += qty;
-  } else {
-    adminOrderItems.push({ name, price, qty, details });
-  }
-
-  updateAdminOrderItems();
-
-  document.getElementById("adminProduct").value = "";
-  document.getElementById("adminProductOptions").innerHTML = "";
-  document.getElementById("adminQty").value = 1;
-}
-
-function updateAdminOrderItems() {
-  const text = adminOrderItems.map(item =>
-    `${item.name} x ${item.qty} — ${money(item.price * item.qty)}`
-  ).join("\n");
-
-  document.getElementById("adminItems").value = text;
-
-  const total = adminOrderItems.reduce(
-    (sum, item) => sum + item.price * item.qty, 0
-  );
-
-  document.getElementById("adminTotal").value = total.toFixed(2);
-}
-
-function clearAdminItems() {
-  adminOrderItems = [];
-  updateAdminOrderItems();
-}
 
 async function getAdminRecords() {
   if (!currentStaff) {
@@ -923,100 +829,11 @@ async function getAdminRecords() {
     total: Number(row.total || 0),
     notes: row.notes || "",
     payment: row.payment,
-    createdAt: row.created_at
+pickupStatus: row.pickup_status || "Not Picked Up",
+createdAt: row.created_at
   }));
 }
- 
-async function saveAdminOrder(confirmPaid) {
-  if (!currentStaff) {
-    alert("Please log in first. 请先登录。");
-    return;
-  }
 
-  const name = document.getElementById("adminName").value.trim();
-  const phone = document.getElementById("adminPhone").value.trim();
-  const date = document.getElementById("adminDate").value;
-  const time = document.getElementById("adminTime").value;
-  const notes = document.getElementById("adminNotes").value.trim();
-
-  if (!name || !date || !time || adminOrderItems.length === 0) {
-    alert("Please enter customer, pickup details and items.\n请填写顾客资料、取餐时间并添加商品。");
-    return;
-  }
-if(isClosedPickupDate(date)){
-  alert("We are closed on Fridays and Saturdays.\n星期五及星期六休息，不能登记这两天的订单。");
-  return;
-}
-  const total = adminOrderItems.reduce(
-    (sum, item) => sum + item.price * item.qty, 0
-  );
-
-  if (!Number.isFinite(total) || total <= 0) {
-    alert("Please check the order total. 请检查订单总额。");
-    return;
-  }
-
-  if (confirmPaid && !confirm(
-    "Confirm that payment has actually been received?\n请确认店家已实际收到款项。"
-  )) {
-    return;
-  }
-
-  let orderNumber = "";
-
-  try {
-    if (confirmPaid) {
-      const { data: generatedNumber, error: numberError } =
-        await supabaseClient.rpc("next_order_number", {
-          p_pickup_date: date
-        });
-
-      if (numberError) throw numberError;
-      orderNumber = generatedNumber;
-    }
-
-    const { error: saveError } = await supabaseClient
-      .from("orders")
-      .insert({
-        order_number: orderNumber || null,
-        customer: name,
-        phone: phone || null,
-        pickup_date: date,
-        pickup_time: time,
-        items: adminOrderItems.map(item => ({ ...item })),
-        total: Number(total.toFixed(2)),
-        notes: notes || null,
-        payment: confirmPaid ? "Paid" : "Pending",
-        created_by: currentStaff.id
-      });
-
-    if (saveError) throw saveError;
-
-    alert(
-      confirmPaid
-        ? `Paid order saved to cloud.\n订单已保存至云端。\n${orderNumber}`
-        : "Pending order saved to cloud. No order number assigned yet.\n待付款订单已保存至云端，暂未分配订单编号。"
-    );
-
-    document.getElementById("adminName").value = "";
-    document.getElementById("adminPhone").value = "";
-    document.getElementById("adminDate").value = "";
-    document.getElementById("adminTime").value = "";
-    document.getElementById("adminNotes").value = "";
-    document.getElementById("adminPayment").value =
-      confirmPaid ? "Paid" : "Pending";
-
-    clearAdminItems();
-    await renderRecords();
-
-  } catch (error) {
-    console.error("Cloud order save failed:", error);
-    alert(
-      "Could not save the order to Supabase.\n无法保存订单至云端。\n" +
-      (error.message || "Please try again. 请重试。")
-    );
-  }
-}
 
 async function confirmExistingOrderPaid(id) {
   if (!currentStaff) {
@@ -1025,59 +842,71 @@ async function confirmExistingOrderPaid(id) {
   }
 
   if (!confirm(
-    "Confirm that payment has actually been received for this order?\n请确认这笔订单已实际收到款项。"
-  )) {
-    return;
-  }
+    "Have you verified that payment was received?\n请确认已经核实收到款项。"
+  )) return;
 
   try {
-    const { data: order, error: fetchError } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from("orders")
-      .select("id, order_number, pickup_date, payment")
+      .update({ payment: "Paid" })
       .eq("id", id)
-      .single();
+      .eq("payment", "Pending")
+      .not("order_number", "is", null)
+      .select("id");
 
-    if (fetchError) throw fetchError;
+    if (error) throw error;
 
-    if (order.payment === "Paid") {
-      alert("This order is already marked as paid. 这笔订单已经确认付款。");
-      await renderRecords();
-      return;
+    if (!data || data.length === 0) {
+      throw new Error(
+        "Order could not be updated. Please check its order number and payment status."
+      );
     }
 
-    const { data: orderNumber, error: numberError } =
-      await supabaseClient.rpc("next_order_number", {
-        p_pickup_date: order.pickup_date
-      });
-
-    if (numberError) throw numberError;
-
-    const { error: updateError } = await supabaseClient
-      .from("orders")
-      .update({
-        payment: "Paid",
-        order_number: orderNumber
-      })
-      .eq("id", id)
-      .eq("payment", "Pending");
-
-    if (updateError) throw updateError;
-
-    alert(
-      "Payment confirmed. 付款已确认。\nOrder number 订单编号: " +
-      orderNumber
-    );
-
+    alert("Payment confirmed. 已确认收款。");
     await renderRecords();
 
   } catch (error) {
-    console.error("Confirm payment failed:", error);
+    console.error("Payment confirmation failed:", error);
     alert(
-      "Could not confirm payment.\n无法确认付款。\n" +
-      (error.message || "Please try again. 请重试。")
+      "Could not confirm payment.\n无法确认收款。\n" +
+      (error.message || "Please try again.")
     );
   }
 }
+
+async function markOrderPickedUp(id) {
+  if (!currentStaff) {
+    alert("Please log in first. 请先登录。");
+    return;
+  }
+
+  if (!confirm(
+    "Confirm that this order has been picked up?\n请确认顾客已经取餐。"
+  )) return;
+
+  try {
+    const { error } = await supabaseClient
+      .from("orders")
+      .update({ pickup_status: "Picked Up" })
+      .eq("id", id)
+      .eq("payment", "Paid")
+      .eq("pickup_status", "Not Picked Up");
+
+    if (error) throw error;
+
+    alert("Order marked as picked up. 已标记为已取餐。");
+    await renderRecords();
+
+  } catch (error) {
+    console.error("Pickup update failed:", error);
+    alert(
+      "Could not update pickup status.\n无法更新取餐状态。\n" +
+      (error.message || "Please try again.")
+    );
+  }
+}
+
+
 
 
 function escapeAdminHTML(value) {
@@ -1223,11 +1052,13 @@ async function printOrderTicket(id) {
 
       <div><b>Payment 付款状态：</b>${esc(row.payment || "")}</div>
 
-      ${row.notes ? `
-        <hr class="rule">
-        <b>Notes 备注：</b>
-        <div class="notes">${esc(row.notes)}</div>
-      ` : ""}
+<div><b>Pickup Status 取餐状态：</b>${esc(row.pickup_status || "Not Picked Up")}</div>
+
+${row.notes ? `
+  <hr class="rule">
+  <b>Notes 备注：</b>
+  <div class="notes">${esc(row.notes)}</div>
+` : ""}
 
       <hr class="rule">
 
@@ -1293,8 +1124,7 @@ async function renderRecords() {
       );
 
     const total = records.reduce(
-      (sum, r) => sum + Number(r.total || 0),
-      0
+      (sum, r) => sum + Number(r.total || 0), 0
     );
 
     summary.textContent =
@@ -1306,37 +1136,96 @@ async function renderRecords() {
       return;
     }
 
-    list.innerHTML = records.map(r => `
-      <article class="item" style="margin-top:12px">
-        <strong>${escapeAdminHTML(
-          r.orderNumber || "Pending / 待确认编号"
-        )}</strong>
-        <p>${escapeAdminHTML(r.customer)} · ${escapeAdminHTML(r.phone)}</p>
-        <p>Pickup: ${escapeAdminHTML(r.pickupDate)} · ${escapeAdminHTML(r.pickupTime)}</p>
-        <p>${(Array.isArray(r.items) ? r.items : []).map(i =>
-          `${escapeAdminHTML(i.name)} × ${Number(i.qty)} — ${money(Number(i.price) * Number(i.qty))}`
-        ).join("<br>")}</p>
-        <strong>Total: ${money(Number(r.total || 0))}</strong>
-        <button
-  type="button"
-  class="secondary"
-  style="margin-top:10px"
-  onclick="printOrderTicket('${escapeAdminHTML(r.id)}')">
-  Print Ticket / 打印取货单
-</button>
-        <p>Payment: ${escapeAdminHTML(r.payment)}</p>
-        ${r.payment === "Pending" ? `
+    list.innerHTML = records.map(r => {
+      const paid = r.payment === "Paid";
+      const pickedUp = r.pickupStatus === "Picked Up";
+
+      return `
+        <article class="item" style="margin-top:12px">
+          <strong style="font-size:19px">
+            ${escapeAdminHTML(r.orderNumber || "Pending / 待分配编号")}
+          </strong>
+
+          <p>
+            ${escapeAdminHTML(r.customer)}
+            · ${escapeAdminHTML(r.phone)}
+          </p>
+
+          <p>
+            Pickup 取餐：${escapeAdminHTML(r.pickupDate)}
+            · ${escapeAdminHTML(r.pickupTime)}
+          </p>
+
+          <div style="line-height:1.7;margin:10px 0">
+            ${(Array.isArray(r.items) ? r.items : []).map(i => `
+              <div style="border-bottom:1px dashed #eadfd6;padding:7px 0">
+                <strong>${escapeAdminHTML(i.name)}</strong>
+                ${i.details
+                  ? `<br><small>${escapeAdminHTML(i.details)}</small>`
+                  : ""}
+                <br>
+                Qty 数量: ${Number(i.qty)} × ${money(Number(i.price))}
+                = ${money(Number(i.price) * Number(i.qty))}
+              </div>
+            `).join("")}
+          </div>
+
+          <strong>Total 总额: ${money(Number(r.total || 0))}</strong>
+
+          <p>
+            Payment 付款状态：
+            <strong style="color:${paid ? "#168447" : "#b45309"}">
+              ${paid ? "Paid / 已付款" : "Pending Payment / 等待付款"}
+            </strong>
+          </p>
+
+          <p>
+            Pickup 取餐状态：
+            <strong style="color:${pickedUp ? "#168447" : "#686868"}">
+              ${pickedUp ? "Picked Up / 已取餐" : "Not Picked Up / 未取餐"}
+            </strong>
+          </p>
+
+          ${!paid && r.orderNumber ? `
+            <button
+              type="button"
+              class="add"
+              style="margin-top:5px"
+              onclick="confirmExistingOrderPaid('${escapeAdminHTML(r.id)}')">
+              Confirm Paid / 确认收款
+            </button>
+          ` : ""}
+
+          ${paid && !pickedUp ? `
+            <button
+              type="button"
+              class="checkout"
+              style="margin-top:5px"
+              onclick="markOrderPickedUp('${escapeAdminHTML(r.id)}')">
+              Picked Up / 已取餐
+            </button>
+          ` : ""}
+
+          ${pickedUp ? `
+            <p style="color:#168447;font-weight:700">
+              ✓ Completed / 已完成
+            </p>
+          ` : ""}
+
           <button
             type="button"
-            class="add"
-            onclick="confirmExistingOrderPaid('${escapeAdminHTML(r.id)}')"
-          >
-            Confirm paid / 确认收款
+            class="secondary"
+            style="margin-top:10px"
+            onclick="printOrderTicket('${escapeAdminHTML(r.id)}')">
+            Print Ticket / 打印取货单
           </button>
-        ` : ""}
-        <p>${escapeAdminHTML(r.notes)}</p>
-      </article>
-    `).join("");
+
+          ${r.notes ? `
+            <p>Notes 备注：${escapeAdminHTML(r.notes)}</p>
+          ` : ""}
+        </article>
+      `;
+    }).join("");
 
   } catch (error) {
     console.error("Load records failed:", error);
@@ -1372,17 +1261,18 @@ async function exportRecords() {
     };
 
     const headers = [
-      "Order Number",
-      "Customer",
-      "Phone",
-      "Pickup Date",
-      "Pickup Time",
-      "Items",
-      "Total (RM)",
-      "Payment",
-      "Notes",
-      "Created At"
-    ];
+  "Order Number",
+  "Customer",
+  "Phone",
+  "Pickup Date",
+  "Pickup Time",
+  "Items",
+  "Total (RM)",
+  "Payment",
+  "Pickup Status",
+  "Notes",
+  "Created At"
+];
 
     const rows = records.map(r => {
       const itemsText = (Array.isArray(r.items) ? r.items : [])
@@ -1400,7 +1290,7 @@ async function exportRecords() {
         r.pickupTime || "",
         itemsText,
         Number(r.total || 0).toFixed(2),
-        r.payment || "",
+        r.payment || "",r.pickupStatus || "Not Picked Up",
         r.notes || "",
         r.createdAt || ""
       ];
