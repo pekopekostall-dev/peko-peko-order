@@ -189,8 +189,8 @@ Please verify payments before confirming orders.
     <label class="field" for="pickupDate">Pickup date 取餐日期 *</label>
     <input id="pickupDate" type="date" onchange="updatePickupDate()">
     <p id="dateHelp" style="font-size:12px;color:#666;line-height:1.5;margin:6px 0">
-  Closed every Friday & Saturday. 星期五及星期六休息。
-  <br>Please select another pickup date. 请选择其他取餐日期。
+  Closed every Saturday & Sunday. 星期六及星期日休息。
+  <br>Please select another pickup date. 请选择其他日期。
 </p>
 
     <label class="field" for="pickupTime">Pickup time 取餐时间 *</label>
@@ -368,8 +368,8 @@ function isClosedPickupDate(dateString){
   const date = new Date(parts[0], parts[1] - 1, parts[2]);
   const day = date.getDay();
 
-  // Friday = 5, Saturday = 6
-  return day === 5 || day === 6;
+  // Saturday = 6, Sunday = 0
+  return day === 0 || day === 6;
 }
 
 function setMinimumDate(){
@@ -388,10 +388,10 @@ function setMinimumDate(){
     min.setDate(min.getDate() + 1);
   }
 
-  // Skip Friday and Saturday.
-  while(min.getDay() === 5 || min.getDay() === 6){
-    min.setDate(min.getDate() + 1);
-  }
+  // Skip Saturday and Sunday.
+while(min.getDay() === 0 || min.getDay() === 6){
+  min.setDate(min.getDate() + 1);
+}
 
   const input = document.getElementById("pickupDate");
   input.min = localDateString(min);
@@ -425,7 +425,7 @@ function updatePickupDate(){
     help.style.color = "#b00020";
   }else{
     help.textContent =
-      "Closed every Friday & Saturday. Please order at least one day ahead. Orders close at 7:00 PM the day before pickup. 每逢星期五及星期六休息。请至少提前一天预订，取餐前一天晚上 7:00 截单。";
+  "Closed every Saturday & Sunday. Please order at least one day ahead. Orders close at 7:00 PM the day before pickup. 每逢星期六及星期日休息。请至少提前一天预订，取餐前一天晚上 7:00 截单。";
 
     help.style.color = "#666";
   }
