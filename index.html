@@ -345,10 +345,17 @@ function getConfiguredItem(id){
     const deluxe=document.getElementById("deluxe-ramen").value==="yes";
     if(!soup||ix===""){alert("Please choose a soup flavor and one topping.\\n请选择汤口味和一种配料。");return null}
     const t=ramenToppings[Number(ix)];
+    const soupChinese = {
+      "Tonkotsu":"豚骨",
+      "Shoyu":"酱油",
+      "Miso":"味噌",
+      "Spicy":"辛辣",
+      "Black Garlic Oil":"黑蒜油"
+    }[soup] || soup;
     const deluxeExtra = t.name==="Spicy Minced Pork" ? "Chashu" : "Spicy Minced Pork";
     const deluxeExtraCN = t.name==="Spicy Minced Pork" ? "日式叉烧" : "秘制辣味肉燥";
     const upgradePrice = deluxe ? 2.90 : 0;
-    const itemName = `Ramen (${soup}) / 拉面（${soup}） + ${t.name} ${t.cn}${deluxe ? " + Deluxe 豪华版" : ""}`;
+    const itemName = `Ramen (${soup}) / 拉面（${soupChinese}） + ${t.name} ${t.cn}${deluxe ? " + Deluxe 豪华版" : ""}`;
     // Keep customer-facing order lines concise; selected options are already in itemName.
     const details = "";
     return {
