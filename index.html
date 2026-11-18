@@ -70,12 +70,13 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <main class="wrap">
   <div class="notice">
     <strong>Ordering & Pickup Rules 订购与取餐须知</strong>
-    Please order at least one day in advance. Orders close at 7:00 PM (19:00) on the day before pickup.
-    <br>请至少提前一天下单，取餐前一天晚上 7:00 截单。
+    Orders must be placed at least 1.5 hours before pickup. Same-day orders are welcome.
+    <br>请至少提前 1.5 小时下单，当天即可取餐。
+    <br>Orders close daily at 7:00 PM (19:00). 每晚 7:00 截单。
     <br><br>
     <strong>Pickup only 目前只提供自取</strong>
-    Pickup times: 1:00 PM, 1:30 PM, 2:00 PM, 6:00 PM, 6:30 PM or 7:00 PM.
-    <br>取餐时间：下午 1:00、1:30、2:00、6:00、6:30 或 7:00。
+    Pickup is available Monday to Friday, from 12:30 PM to 7:00 PM, every 30 minutes.
+    <br>星期一至五开放取餐：中午 12:30 至晚上 7:00，每半小时一个时段。
     <br><br>
     <strong>Payment confirms your order 付款后才最终确认订单</strong>
     Sending an order via WhatsApp is a request only. Your order is confirmed only after payment is successful and the shop confirms receipt.
@@ -196,12 +197,7 @@ Please verify payments before confirming orders.
     <label class="field" for="pickupTime">Pickup time 取餐时间 *</label>
     <select id="pickupTime">
       <option value="">Choose a pickup time / 选择取餐时间</option>
-      <option>1:00 PM / 下午 1:00</option>
-      <option>1:30 PM / 下午 1:30</option>
-      <option>2:00 PM / 下午 2:00</option>
-      <option>6:00 PM / 下午 6:00</option>
-      <option>6:30 PM / 下午 6:30</option>
-      <option>7:00 PM / 下午 7:00</option>
+      <option value="">Choose a pickup date first / 请先选择取餐日期</option>
     </select>
 
     <label class="field" for="customerPhone">Contact Number 联系电话 *</label>
@@ -409,60 +405,93 @@ function isClosedPickupDate(dateString){
 
 function setMinimumDate(){
   const now = new Date();
+  const min = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const min = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
-
-  // Keep the original one-day advance and 7 PM cutoff.
-  if(now.getHours() >= 19){
-    min.setDate(min.getDate() + 2);
-  }else{
+  // Orders close daily at 7:00 PM. After cutoff, next available date is used.
+  if(now.getHours() >= 19) min.setDate(min.getDate() + 1);
+  while(min.getDay() === 0 || min.getDay() === 6){
     min.setDate(min.getDate() + 1);
   }
 
-  // Skip Saturday and Sunday.
-while(min.getDay() === 0 || min.getDay() === 6){
-  min.setDate(min.getDate() + 1);
-}
-
   const input = document.getElementById("pickupDate");
   input.min = localDateString(min);
-
-  if(!input.value || input.value < input.min ||
-     isClosedPickupDate(input.value)){
+  if(!input.value || input.value < input.min || isClosedPickupDate(input.value)){
     input.value = input.min;
   }
-
   updatePickupDate();
 }
 
 function updatePickupDate(){
   const input = document.getElementById("pickupDate");
   const help = document.getElementById("dateHelp");
+  const select = document.getElementById("pickupTime");
+  const previous = select.value;
+  select.innerHTML = '<option value="">Choose a pickup time / 选择取餐时间</option>';
 
-  if(input.value && isClosedPickupDate(input.value)){
+  if(!input.value){
+    help.textContent = "Choose a pickup date. 请选择取餐日期。";
+    return;
+  }
+  if(isClosedPickupDate(input.value)){
     input.value = "";
-
-    help.textContent =
-      "We are closed on Saturdays and Sundays. Please choose another date. 星期六及星期日休息，请选择其他日期。";
-
+    help.textContent = "We are closed on Saturdays and Sundays. 星期六及星期日休息。";
+    help.style.color = "#b00020";
+    return;
+  }
+  if(input.value < input.min){
+    help.textContent = "Please choose today or a later weekday. 请选择今天或之后的工作日。";
     help.style.color = "#b00020";
     return;
   }
 
-  if(input.value && input.min && input.value < input.min){
-    help.textContent =
-      "This date is too soon. Please choose a later date. 日期太早，请选择更晚的日期。";
+  const slots = [
+    ["12:30 PM","中午 12:30"],["1:00 PM","下午 1:00"],
+    ["1:30 PM","下午 1:30"],["2:00 PM","下午 2:00"],
+    ["2:30 PM","下午 2:30"],["3:00 PM","下午 3:00"],
+    ["3:30 PM","下午 3:30"],["4:00 PM","下午 4:00"],
+    ["4:30 PM","下午 4:30"],["5:00 PM","下午 5:00"],
+    ["5:30 PM","下午 5:30"],["6:00 PM","下午 6:00"],
+    ["6:30 PM","下午 6:30"],["7:00 PM","晚上 7:00"]
+  ];
+  const [y,m,d] = input.value.split("-").map(Number);
+  const pickupDay = new Date(y,m-1,d);
+  const now = new Date();
+  const cutoffPassed = now.getHours() >= 19;
+  let available = 0;
 
+  slots.forEach(([time,label]) => {
+    const [clock,ampm] = time.split(" ");
+    let [hour,minute] = clock.split(":").map(Number);
+    if(ampm === "PM" && hour !== 12) hour += 12;
+    if(ampm === "AM" && hour === 12) hour = 0;
+    const slotDate = new Date(y,m-1,d,hour,minute,0,0);
+    const leadTimeOk = slotDate.getTime() >= now.getTime() + 90*60*1000;
+    const isToday = input.value === localDateString(now);
+    if((!isToday || leadTimeOk) && !cutoffPassed){
+      const option = document.createElement("option");
+      option.value = `${time} / ${label}`;
+      option.textContent = `${time} / ${label}`;
+      select.appendChild(option);
+      available++;
+    } else if(!isToday && !cutoffPassed){
+      const option = document.createElement("option");
+      option.value = `${time} / ${label}`;
+      option.textContent = `${time} / ${label}`;
+      select.appendChild(option);
+      available++;
+    }
+  });
+
+  if(previous && [...select.options].some(o => o.value === previous)) select.value = previous;
+  if(cutoffPassed){
+    help.textContent = "Today's ordering has closed at 7:00 PM. Please choose the next available weekday. 今日订单已于晚上 7:00 截单，请选择下一个工作日。";
     help.style.color = "#b00020";
   }else{
-    help.textContent =
-  "Closed every Saturday & Sunday. Please order at least one day ahead. Orders close at 7:00 PM the day before pickup. 每逢星期六及星期日休息。请至少提前一天预订，取餐前一天晚上 7:00 截单。";
-
+    help.textContent = "Please order at least 1.5 hours before pickup. Orders close daily at 7:00 PM. 请至少提前 1.5 小时下单，每晚 7:00 截单。";
     help.style.color = "#666";
+    if(available === 0){
+      help.textContent += " No pickup slots remain for this date. 此日期已没有可选时段。";
+    }
   }
 }
 
