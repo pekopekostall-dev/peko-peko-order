@@ -650,12 +650,10 @@ async function notifyWhatsAppPaid(){
   button.disabled = true;
   button.textContent = "Processing... 正在处理";
 
-  // Open a blank tab immediately to reduce popup blocking.
-  const whatsappWindow = window.open("about:blank", "_blank");
-
   try{
-    // Generate the order number in Supabase.
-    // Repeated clicks return the same number.
+    // Generate the order number in Supabase first.
+    // Do not open a blank popup: mobile browsers may block or fail to
+    // navigate a delayed popup after the asynchronous database request.
     const {data: orderNumber, error} = await supabaseClient.rpc(
       "customer_mark_payment_notified",
       {
@@ -672,49 +670,36 @@ async function notifyWhatsAppPaid(){
     const time = document.getElementById("pickupTime").value;
 
     const orderDetails = Object.values(cart).map((item, index) =>
-  `${index + 1}. ${item.name}` +
-  (item.details ? `\n   ${item.details}` : "") +
-  `\n   Qty: ${item.qty} × ${money(item.price)} = ${money(item.qty * item.price)}`
-).join("\n\n");
+      `${index + 1}. ${item.name}` +
+      (item.details ? `\n   ${item.details}` : "") +
+      `\n   Qty: ${item.qty} × ${money(item.price)} = ${money(item.qty * item.price)}`
+    ).join("\n\n");
 
-const msg =
-  `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
-  `\n\nOrder Number: ${orderNumber}` +
-  `\nCustomer: ${name}` +
-  `\nPhone: ${phone}` +
-  `\nPickup: ${date}, ${time}` +
-  `\n\nORDER DETAILS / 订单内容` +
-  `\n${orderDetails}` +
-  `\n\nTOTAL 总额: ${money(customerOrderAmount)}` +
-  `\n\nNotes 备注: ${document.getElementById("notes").value.trim() || "None / 无"}` +
-  `\n\nCustomer says payment has been made.` +
-  `\nPlease verify payment before confirming the order.` +
-  `\n\n顾客已通知付款，请核实收款后才确认订单。`;
+    const msg =
+      `PEKO PEKO STALL — PAYMENT NOTIFICATION` +
+      `\n\nOrder Number: ${orderNumber}` +
+      `\nCustomer: ${name}` +
+      `\nPhone: ${phone}` +
+      `\nPickup: ${date}, ${time}` +
+      `\n\nORDER DETAILS / 订单内容` +
+      `\n${orderDetails}` +
+      `\n\nTOTAL 总额: ${money(customerOrderAmount)}` +
+      `\n\nNotes 备注: ${document.getElementById("notes").value.trim() || "None / 无"}` +
+      `\n\nCustomer says payment has been made.` +
+      `\nPlease verify payment before confirming the order.` +
+      `\n\n顾客已通知付款，请核实收款后才确认订单。`;
 
     const url =
       `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 
-    alert(
-      "Order number assigned: " + orderNumber +
-      "\n订单编号已生成。\n\n" +
-      "Please send the WhatsApp message to notify the shop.\n" +
-      "请发送 WhatsApp 信息通知店家。"
-    );
+    button.textContent = "Opening WhatsApp... 正在打开 WhatsApp";
 
-    if(whatsappWindow && !whatsappWindow.closed){
-      whatsappWindow.location.href = url;
-    }else{
-      window.location.href = url;
-    }
-
-    button.textContent = "WhatsApp Notification Ready 已生成通知";
+    // Navigate this tab instead of opening a new popup. Same-tab navigation
+    // is not subject to popup blocking and works more reliably on phones.
+    window.location.assign(url);
 
   }catch(error){
     console.error("Payment notification failed:", error);
-
-    if(whatsappWindow && !whatsappWindow.closed){
-      whatsappWindow.close();
-    }
 
     alert(
       "Could not process payment notification.\n无法处理付款通知。\n\n" +
@@ -725,7 +710,6 @@ const msg =
     button.textContent = "I've Paid / 我已付款";
   }
 }
-
 
 
 // ===== STAFF AUTHENTICATION / 员工登录验证 =====
